@@ -94,9 +94,13 @@ $url = $router->generate('UserController', null, [
 ### Simple Parameters
 
 ```php
-$router->addRoute('/pages/:name', 'PageController', [
-	'table' => 'pages',
-]);
+[
+    'pattern' => '/pages/:name',
+    'controller' => 'PageController',
+    'options' => [
+        'table' => 'pages',
+    ],
+]
 ```
 
 URL: `/pages/about-us` → Looks up page with `name = 'about-us'`
@@ -104,10 +108,10 @@ URL: `/pages/about-us` → Looks up page with `name = 'about-us'`
 ### Numeric IDs
 
 ```php
-$router->addRoute('/pages/:id', 'PageController', [
-	'table' => 'pages',
-	'id_field' => 'id',
-]);
+[
+    'pattern' => '/pages/:id',
+    'controller' => 'PageController',
+]
 ```
 
 URL: `/pages/123` → Directly matches ID 123
@@ -115,9 +119,13 @@ URL: `/pages/123` → Directly matches ID 123
 ### Multiple Fields in One Segment
 
 ```php
-$router->addRoute('/users/:name-:surname', 'UserController', [
-	'table' => 'users',
-]);
+[
+    'pattern' => '/pages/:name-:surname',
+    'controller' => 'UserController',
+    'options' => [
+        'table' => 'users',
+    ],
+]
 ```
 
 URL: `/users/john-doe-smith` → Tries combinations:
@@ -127,10 +135,13 @@ URL: `/users/john-doe-smith` → Tries combinations:
 ### Relationship Fields
 
 ```php
-$router->addRoute('/products/:category.name/:id-:name', 'ProductController', [
-	'table' => 'products',
-	'id_field' => 'id',
-]);
+[
+    'pattern' => '/products/:category.name/:id-:name',
+    'controller' => 'ProductController',
+    'options' => [
+        'table' => 'products',
+    ],
+]
 ```
 
 URL: `/products/electronics/123-laptop` → Looks up:
@@ -151,41 +162,19 @@ URL: `/products/electronics/123-laptop` → Looks up:
 ### Example with All Options
 
 ```php
-$router->addRoute('/blog/:category.name/:id-:slug', 'BlogController', [
-	'table' => 'blog_posts',
-	'id_field' => 'id',
-	'relationships' => [
-		'category' => [
-			'table' => 'blog_categories',
-			'foreign_key' => 'category_id',
-		],
-	],
-	'case_sensitive' => false,
-	'tags' => [
-		'lang' => 'en',
-		'type' => 'public',
-	],
-	'lowercase' => true,
-]);
-```
-
-## Adding Multiple Routes
-
-Use `addRoutes()` to add multiple routes from a configuration array:
-
-```php
-$router->addRoutes([
-	[
-		'pattern' => '/pages/:name',
-		'controller' => 'PageController',
-		'options' => ['table' => 'pages'],
-	],
-	[
-		'pattern' => '/users/:id',
-		'controller' => 'UserController',
-		'options' => ['table' => 'users'],
-	],
-]);
+[
+    'pattern' => '/blog/:category.name/:id-:slug',
+    'controller' => 'BlogController',
+    'options' => [
+        'table' => 'blog_posts',
+        'id_field' => 'id',
+        'case_sensitive' => false,
+        'tags' => [
+            'lang' => 'en',
+            'type' => 'public',
+        ],
+        'lowercase' => true,
+]
 ```
 
 ## URL Generation with Tags
@@ -193,17 +182,6 @@ $router->addRoutes([
 Generate URLs for specific route variants using tags:
 
 ```php
-// Add routes with tags
-$router->addRoute('/pages/:name', 'PageController', [
-	'table' => 'pages',
-	'tags' => ['lang' => 'en'],
-]);
-
-$router->addRoute('/pagine/:name', 'PageController', [
-	'table' => 'pages',
-	'tags' => ['lang' => 'it'],
-]);
-
 // Generate for specific language
 $url = $router->generate('PageController', 5, [], ['lang' => 'en']);
 // Result: /pages/about-us
