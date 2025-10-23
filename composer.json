@@ -1,0 +1,17 @@
+{
+    "name": "model/router",
+    "description": "Routing module for ModEl Framework",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Domenico Giambra",
+            "email": "zorinik@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {"Model\\Redis\\": "src/"}
+    },
+    "require": {
+        "model/config": "^0.7.0"
+    }
+}
