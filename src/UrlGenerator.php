@@ -2,14 +2,10 @@
 
 class UrlGenerator
 {
-	private $dbResolver = null;
-	private $relationshipResolver = null;
 	private array $cache = [];
 
-	public function __construct(?callable $dbResolver = null, ?callable $relationshipResolver = null)
+	public function __construct(private ?ResolverInterface $resolver = null)
 	{
-		$this->dbResolver = $dbResolver;
-		$this->relationshipResolver = $relationshipResolver;
 	}
 
 	/**
@@ -89,16 +85,16 @@ class UrlGenerator
 			return $relationships[$relationshipName][$field['field']] ?? null;
 
 		// Get the relationship table
-		if ($this->relationshipResolver === null)
+		if ($this->resolver === null)
 			return null;
 
-		$relationshipTable = call_user_func($this->relationshipResolver, $relationshipName);
+		$relationshipTable = $this->resolver->resolveRelationship($relationshipName);
 		
 		if ($relationshipTable === null)
 			return null;
 
 		// First, we need to get the relationship ID from the main entity
-		if ($this->dbResolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or $route->options['table'] === null)
 			return null;
 
 		$mainRow = $this->fetchMainRow($route, $id, $params);
@@ -117,7 +113,7 @@ class UrlGenerator
 		$relationshipId = $mainRow[$foreignKeyField];
 
 		// Fetch the relationship row
-		$relationshipRow = call_user_func($this->dbResolver, $relationshipTable, ['id' => $relationshipId]);
+		$relationshipRow = $this->resolver->select($relationshipTable, ['id' => $relationshipId]);
 		
 		if ($relationshipRow === null)
 			return null;
@@ -133,7 +129,7 @@ class UrlGenerator
 	 */
 	private function fetchFieldValue(array $field, Route $route, ?int $id, array $params): ?string
 	{
-		if ($this->dbResolver === null or $route->options['table'] === null or $id === null)
+		if ($this->resolver === null or $route->options['table'] === null or $id === null)
 			return null;
 
 		$row = $this->fetchMainRow($route, $id, $params);
@@ -157,7 +153,7 @@ class UrlGenerator
 		if (isset($this->cache[$cacheKey]))
 			return $this->cache[$cacheKey];
 
-		$row = call_user_func($this->dbResolver, $route->options['table'], [$route->options['id_field'] => $id]);
+		$row = $this->resolver->select($route->options['table'], [$route->options['id_field'] => $id]);
 		
 		if ($row !== null)
 			$this->cache[$cacheKey] = $row;

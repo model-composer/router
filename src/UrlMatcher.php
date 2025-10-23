@@ -3,13 +3,9 @@
 class UrlMatcher
 {
 	private string $acceptableCharacters = 'a-zа-я0-9_\p{Han}-';
-	private $dbResolver = null;
-	private $relationshipResolver = null;
 
-	public function __construct(?callable $dbResolver = null, ?callable $relationshipResolver = null)
+	public function __construct(private ?ResolverInterface $resolver = null)
 	{
-		$this->dbResolver = $dbResolver;
-		$this->relationshipResolver = $relationshipResolver;
 	}
 
 	/**
@@ -19,10 +15,12 @@ class UrlMatcher
 	public function match(string $url, Route $route): ?array
 	{
 		$urlSegments = explode('/', trim($url, '/'));
-		
+
 		// Quick check: segment count must be greater or equal
 		if (count($urlSegments) < count($route->segments))
 			return null;
+
+		// TODO: regex matching for the whole route
 
 		$params = [];
 		$relationships = [];
@@ -33,10 +31,10 @@ class UrlMatcher
 
 			if ($segment['type'] === 'static') {
 				// Static segment must match exactly
-				$matches = $route->options['case_sensitive'] 
+				$matches = $route->options['case_sensitive']
 					? $urlSegment === $segment['value']
 					: strcasecmp($urlSegment, $segment['value']) === 0;
-				
+
 				if (!$matches)
 					return null;
 			} else {
@@ -58,27 +56,17 @@ class UrlMatcher
 	/**
 	 * Extract parameters from a dynamic URL segment
 	 */
-	private function extractFromSegment(string $urlSegment, array $segment, Route $route, array &$relationships): ?array
+	private function extractFromSegment(string $urlSegment, array $segment, Route $route, array &$relationships): ?int
 	{
 		$fields = $segment['fields'];
-		
-		// Check if this is a simple numeric ID
-		// TODO: if there is the id, quick extraction
-		if (count($fields) === 1 and $fields[0]['name'] === $route->options['id_field'] and is_numeric($urlSegment))
-			return [$fields[0]['name'] => (int)$urlSegment];
 
-		// Check for relationship fields
-		$hasRelationships = false;
 		foreach ($fields as $field) {
-			if ($field['relationships'] !== null) {
-				$hasRelationships = true;
-				break;
-			}
+			// If there is the id field, extract it directly
+			if (!$field['relationships'] and $field['name'] === $route->options['id_field'])
+				return $this->extractId($urlSegment, $field, $route);
 		}
 
-		// If we have relationships, resolve them first
-		if ($hasRelationships)
-			return $this->extractWithRelationships($urlSegment, $fields, $route, $relationships);
+		// TODO: handle relationships
 
 		// Multiple fields in one segment - try combinations
 		if (count($fields) > 1)
@@ -91,36 +79,50 @@ class UrlMatcher
 	/**
 	 * Extract a single field from URL segment
 	 */
-	private function extractSingleField(string $urlSegment, array $field, Route $route, array $relationships): ?array
+	private function extractSingleField(string $urlSegment, array $field, Route $route, array $relationships): ?int
 	{
-		if ($this->dbResolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or $route->options['table'] === null)
 			return null;
 
 		// Build where clause
 		$where = [$field['name'] => $urlSegment];
-		
+
 		// Add parent relationship constraints
 		foreach ($relationships as $rel)
 			$where = array_merge($where, $rel);
 
-		$row = call_user_func($this->dbResolver, $route->options['table'], $where);
-		
+		$row = $this->resolver->select($route->options['table'], $where);
 		if ($row === null)
 			return null;
 
-		return [$route->options['id_field'] => $row[$route->options['id_field']]];
+		return $row[$route->options['id_field']];
+	}
+
+	/**
+	 * Extract ID field from URL segment
+	 */
+	private function extractId(string $urlSegment, array $field, Route $route): ?int
+	{
+		$pattern = explode('-', $route->pattern);
+		$words = explode('-', $urlSegment);
+		foreach ($pattern as $idx => $part) {
+			if (ltrim($part, ':') === $field['name'] and isset($words[$idx]) and is_numeric($words[$idx]))
+				return $words[$idx];
+		}
+
+		return null;
 	}
 
 	/**
 	 * Extract multiple fields from a single URL segment (e.g., john-doe)
 	 */
-	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $relationships): ?array
+	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $relationships): ?int
 	{
-		if ($this->dbResolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or $route->options['table'] === null)
 			return null;
 
 		$words = explode('-', $urlSegment);
-		
+
 		if (count($words) < count($fields))
 			return null;
 
@@ -139,64 +141,21 @@ class UrlMatcher
 			foreach ($relationships as $rel)
 				$where = array_merge($where, $rel);
 
-			$row = call_user_func($this->dbResolver, $route->options['table'], $where);
-			
+			$row = $this->resolver->select($route->options['table'], $where);
 			if ($row !== null)
-				return [$route->options['id_field'] => $row[$route->options['id_field']]];
+				return $row[$route->options['id_field']];
 		}
 
-		return null;
-	}
-
-	/**
-	 * Extract fields when relationships are involved
-	 */
-	private function extractWithRelationships(string $urlSegment, array $fields, Route $route, array &$relationships): ?array
-	{
-		// For now, relationship fields are treated as simple lookups
-		// The actual relationship resolution happens during URL generation
-		// Here we just extract the value and store it
-		
-		if (count($fields) === 1) {
-			$field = $fields[0];
-			
-			if ($field['relationships'] !== null) {
-				// Look up the relationship
-				if ($this->relationshipResolver === null)
-					return null;
-
-				$relationshipTable = call_user_func($this->relationshipResolver, $field['relationships']);
-				
-				if ($relationshipTable === null)
-					return null;
-
-				if ($this->dbResolver === null)
-					return null;
-
-				$row = call_user_func($this->dbResolver, $relationshipTable, [$field['field'] => $urlSegment]);
-				
-				if ($row === null)
-					return null;
-
-				// Store this relationship for child lookups
-				$relationships[$field['relationships']] = $row;
-
-				return [$field['relationships'] => $row];
-			}
-		}
-
-		// Multiple fields with relationships - not yet implemented
 		return null;
 	}
 
 	/**
 	 * Generate all possible field combinations for multi-field segments
-	 * Similar to the original createCombination and possibleCombinations methods
 	 */
 	private function generateFieldCombinations(array $words, array $fields): array
 	{
 		$fieldNames = array_map(fn($f) => $f['name'], $fields);
-		
+
 		$numFields = count($fieldNames);
 		$numWords = count($words);
 
@@ -210,20 +169,20 @@ class UrlMatcher
 
 		// Generate combination patterns
 		$patterns = $this->createCombinationPatterns($numWords, $numFields);
-		
+
 		$combinations = [];
 		foreach ($patterns as $pattern) {
 			$wordsTemp = $words;
 			$combination = [];
-			
+
 			foreach ($pattern as $fieldIdx => $wordCount) {
 				$fieldWords = [];
 				for ($i = 0; $i < $wordCount; $i++)
 					$fieldWords[] = array_shift($wordsTemp);
-				
+
 				$combination[$fieldNames[$fieldIdx]] = implode('%', $fieldWords);
 			}
-			
+
 			$combinations[] = $combination;
 		}
 
@@ -242,7 +201,7 @@ class UrlMatcher
 		for ($i = 1; $i <= $words - $fields + 1; $i++) {
 			$remaining = $words - $i;
 			$subPatterns = $this->createCombinationPatterns($remaining, $fields - 1);
-			
+
 			foreach ($subPatterns as $subPattern)
 				$patterns[] = array_merge([$i], $subPattern);
 		}

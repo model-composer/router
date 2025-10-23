@@ -5,42 +5,11 @@ class Router
 	/** @var Route[] */
 	private array $routes = [];
 
-	private $dbResolver = null;
-	private $relationshipResolver = null;
-
 	private ?UrlMatcher $matcher = null;
 	private ?UrlGenerator $generator = null;
 
-	public function __construct(?callable $dbResolver = null, ?callable $relationshipResolver = null)
+	public function __construct(private ?ResolverInterface $resolver = null)
 	{
-		if ($dbResolver)
-			$this->dbResolver = $dbResolver;
-		if ($relationshipResolver)
-			$this->relationshipResolver = $relationshipResolver;
-	}
-
-	/**
-	 * Set the database resolver callback
-	 * Signature: function(string $table, array $where): ?array
-	 */
-	public function setDbResolver(callable $resolver): self
-	{
-		$this->dbResolver = $resolver;
-		$this->matcher = null; // Reset matcher to rebuild with new resolver
-		$this->generator = null; // Reset generator to rebuild with new resolver
-		return $this;
-	}
-
-	/**
-	 * Set the relationship resolver callback
-	 * Signature: function(string $relationship): ?string (returns table name)
-	 */
-	public function setRelationshipResolver(callable $resolver): self
-	{
-		$this->relationshipResolver = $resolver;
-		$this->matcher = null;
-		$this->generator = null;
-		return $this;
 	}
 
 	/**
@@ -128,7 +97,7 @@ class Router
 	private function getMatcher(): UrlMatcher
 	{
 		if ($this->matcher === null)
-			$this->matcher = new UrlMatcher($this->dbResolver, $this->relationshipResolver);
+			$this->matcher = new UrlMatcher($this->resolver);
 
 		return $this->matcher;
 	}
@@ -139,7 +108,7 @@ class Router
 	private function getGenerator(): UrlGenerator
 	{
 		if ($this->generator === null)
-			$this->generator = new UrlGenerator($this->dbResolver, $this->relationshipResolver);
+			$this->generator = new UrlGenerator($this->resolver);
 
 		return $this->generator;
 	}
