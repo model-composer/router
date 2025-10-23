@@ -21,7 +21,35 @@ composer require model/router
 
 ## Basic Usage
 
-### 1. Create and Configure Router
+### 1. Create Router providers
+
+```php
+use \Model\Router\AbstractRouterProvider;
+
+class RouterProvider extends AbstractRouterProvider {
+    public function getRoutes(): void {
+        return [
+            [
+                'pattern' => '/pages/:name',
+                'controller' => 'PageController',
+                'options' => [
+                    'table' => 'pages',
+                    'id_field' => 'id',
+                ],
+            ],
+            [
+                'pattern' => '/users/:name-:surname',
+                'controller' => 'UserController',
+                'options' => [
+                    'table' => 'users',
+                    'id_field' => 'id',
+                ],
+            ],
+        ];
+    }
+}
+
+### 2. Create Router
 
 ```php
 use Model\Router\Router;
@@ -32,20 +60,9 @@ $router = new Router();
 // If they use database lookups, provide a Resolver instance
 $resolver = new YourDatabaseResolver(); // Implement the Resolver interface
 $router = new Router($resolver);
-
-// Add routes
-$router->addRoute('/pages/:name', 'PageController', [
-	'table' => 'pages',
-	'id_field' => 'id',
-]);
-
-$router->addRoute('/users/:name-:surname', 'UserController', [
-	'table' => 'users',
-	'id_field' => 'id',
-]);
 ```
 
-### 2. Match Incoming URLs
+### 3. Match Incoming URLs
 
 ```php
 $url = '/pages/about-us';
@@ -57,7 +74,7 @@ if ($result) {
 }
 ```
 
-### 3. Generate URLs
+### 4. Generate URLs
 
 ```php
 // Generate URL with ID
@@ -193,35 +210,6 @@ $url = $router->generate('PageController', 5, [], ['lang' => 'en']);
 
 $url = $router->generate('PageController', 5, [], ['lang' => 'it']);
 // Result: /pagine/chi-siamo
-```
-
-## Migration from Old Router
-
-The old Router extended `Model\Core\Module` and used a different route definition format. To migrate:
-
-### Old Format
-
-```php
-$rules = [
-	[
-		'rule' => ['pages', '[el:name]'],
-		'controller' => 'PageController',
-		'options' => [
-			'table' => 'pages',
-			'id' => 'id',
-			'element' => 'Page',
-		],
-	],
-];
-```
-
-### New Format
-
-```php
-$router->addRoute('/pages/:name', 'PageController', [
-	'table' => 'pages',
-	'id_field' => 'id',
-]);
 ```
 
 ## Advanced Features

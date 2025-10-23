@@ -1,9 +1,13 @@
 <?php namespace Model\Router;
 
+use Model\Cache\Cache;
+use Model\ProvidersFinder\Providers;
+
 class Router
 {
 	/** @var Route[] */
 	private array $routes = [];
+	private bool $routesLoaded = false;
 
 	private ?UrlMatcher $matcher = null;
 	private ?UrlGenerator $generator = null;
@@ -12,32 +16,40 @@ class Router
 	{
 	}
 
-	/**
-	 * Add a single route
-	 */
-	public function addRoute(string $pattern, string $controller, array $options = []): self
+	public function getRoutes(): array
 	{
-		$this->routes[] = new Route($pattern, $controller, $options);
-		return $this;
+		if (!$this->routesLoaded) {
+			$cache = Cache::getCacheAdapter();
+
+			$this->routes = $cache->get('model.router.routes', function (\Symfony\Contracts\Cache\ItemInterface $item) {
+				$item->expiresAfter(3600 * 24);
+
+				$routes = [];
+				$providers = Providers::find('RouterProvider');
+				foreach ($providers as $provider) {
+					$providerRoutes = $provider['provider']::getRoutes();
+					foreach ($providerRoutes as $route)
+						$routes[] = new Route($route['pattern'], $route['controller'], $route['options'] ?? []);
+				}
+
+				return $routes;
+			});
+
+			$this->routesLoaded = true;
+		}
+
+		return $this->routes;
 	}
 
 	/**
-	 * Add multiple routes from configuration array
-	 * Format: [
-	 *   ['pattern' => '/pages/:name', 'controller' => 'PageController', 'options' => [...]],
-	 *   ...
-	 * ]
+	 * Manually add a route at runtime
 	 */
-	public function addRoutes(array $routes): self
+	public function addRoute(string $pattern, string $controller, array $options = []): self
 	{
-		foreach ($routes as $route) {
-			$pattern = $route['pattern'] ?? '';
-			$controller = $route['controller'] ?? '';
-			$options = $route['options'] ?? [];
+		if (!$this->routesLoaded)
+			$this->getRoutes(); // Ensure routes are loaded first
 
-			if (!empty($pattern) and !empty($controller))
-				$this->addRoute($pattern, $controller, $options);
-		}
+		$this->routes[] = new Route($pattern, $controller, $options);
 		return $this;
 	}
 
@@ -111,23 +123,6 @@ class Router
 			$this->generator = new UrlGenerator($this->resolver);
 
 		return $this->generator;
-	}
-
-	/**
-	 * Get all registered routes
-	 */
-	public function getRoutes(): array
-	{
-		return $this->routes;
-	}
-
-	/**
-	 * Clear all routes
-	 */
-	public function clearRoutes(): self
-	{
-		$this->routes = [];
-		return $this;
 	}
 }
 
