@@ -9,7 +9,7 @@
         }
     ],
     "autoload": {
-        "psr-4": {"Model\\Redis\\": "src/"}
+        "psr-4": {"Model\\Router\\": "src/"}
     },
     "require": {
         "ext-mbstring": "*",
