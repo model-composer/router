@@ -22,8 +22,8 @@ class UrlMatcher
 
 		// TODO: regex matching for the whole route
 
-		$params = [];
 		$relationships = [];
+		$id = null;
 
 		// Match each segment
 		foreach ($route->segments as $index => $segment) {
@@ -39,17 +39,15 @@ class UrlMatcher
 					return null;
 			} else {
 				// Dynamic segment - extract parameters
-				$extracted = $this->extractFromSegment($urlSegment, $segment, $route, $relationships);
-				if ($extracted === null)
+				$id = $this->extractFromSegment($urlSegment, $segment, $route, $relationships);
+				if ($id === null)
 					return null;
-
-				$params = array_merge($params, $extracted);
 			}
 		}
 
 		return [
 			'controller' => $route->controller,
-			'params' => $params,
+			'id' => $id,
 		];
 	}
 
@@ -58,12 +56,16 @@ class UrlMatcher
 	 */
 	private function extractFromSegment(string $urlSegment, array $segment, Route $route, array &$relationships): ?int
 	{
-		$fields = $segment['fields'];
+		$parts = $segment['parts'];
 
-		foreach ($fields as $field) {
-			// If there is the id field, extract it directly
-			if (!$field['relationships'] and $field['name'] === $route->options['id_field'])
-				return $this->extractId($urlSegment, $field, $route);
+		$fields = [];
+		foreach ($parts as $part) {
+			if ($part['type'] === 'field') {
+				if (!$part['relationships'] and $part['name'] === $route->options['id_field']) // If there is the id field, extract it directly
+					return $this->extractId($urlSegment, $part, $route);
+
+				$fields[] = $part;
+			}
 		}
 
 		// TODO: handle relationships

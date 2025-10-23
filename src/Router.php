@@ -73,7 +73,7 @@ class Router
 	/**
 	 * Generate a URL for a controller with parameters
 	 */
-	public function generate(string $controller, ?int $id = null, array $params = [], array $tags = []): ?string
+	public function generate(string $controller, int|array|null $element = null, array $tags = []): ?string
 	{
 		$generator = $this->getGenerator();
 
@@ -81,7 +81,7 @@ class Router
 		$matchingRoutes = $this->getRoutesForController($controller, $tags);
 
 		foreach ($matchingRoutes as $route) {
-			$url = $generator->generate($route, $id, $params);
+			$url = $generator->generate($route, $element);
 			if ($url !== null)
 				return $url;
 		}

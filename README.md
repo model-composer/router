@@ -82,7 +82,7 @@ $url = $router->generate('PageController', 5);
 // Result: /pages/about-us
 
 // Generate URL with explicit parameters
-$url = $router->generate('UserController', null, [
+$url = $router->generate('UserController', [
 	'name' => 'John',
 	'surname' => 'Doe',
 ]);
@@ -183,10 +183,10 @@ Generate URLs for specific route variants using tags:
 
 ```php
 // Generate for specific language
-$url = $router->generate('PageController', 5, [], ['lang' => 'en']);
+$url = $router->generate('PageController', 5, ['lang' => 'en']);
 // Result: /pages/about-us
 
-$url = $router->generate('PageController', 5, [], ['lang' => 'it']);
+$url = $router->generate('PageController', 5, ['lang' => 'it']);
 // Result: /pagine/chi-siamo
 ```
 

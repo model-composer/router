@@ -36,7 +36,7 @@ class Route
 			$segment = [
 				'type' => 'static',
 				'value' => $part,
-				'fields' => [],
+				'parts' => [],
 			];
 
 			// Check if this is a dynamic segment
@@ -47,23 +47,29 @@ class Route
 				$fieldParts = explode('-', $segment['value']);
 
 				foreach ($fieldParts as $fieldPart) {
-					if (!str_starts_with($fieldPart, ':'))
-						continue;
-
-					// Check for relationship notation (e.g., category.name)
-					if (str_contains($fieldPart, '.')) {
-						$relationships = explode('.', $fieldPart, 2);
-						$field = array_pop($relationships);
-						$segment['fields'][] = [
-							'name' => $fieldPart,
-							'relationships' => $relationships,
-							'field' => $field,
-						];
+					if (str_starts_with($fieldPart, ':')) {
+						// Check for relationship notation (e.g., category.name)
+						if (str_contains($fieldPart, '.')) {
+							$relationships = explode('.', $fieldPart, 2);
+							$field = array_pop($relationships);
+							$segment['parts'][] = [
+								'type' => 'field',
+								'name' => $fieldPart,
+								'relationships' => $relationships,
+								'field' => $field,
+							];
+						} else {
+							$segment['parts'][] = [
+								'type' => 'field',
+								'name' => $fieldPart,
+								'relationships' => [],
+								'field' => $fieldPart,
+							];
+						}
 					} else {
-						$segment['fields'][] = [
-							'name' => $fieldPart,
-							'relationships' => [],
-							'field' => $fieldPart,
+						$segment['parts'][] = [
+							'type' => 'static',
+							'value' => $fieldPart,
 						];
 					}
 				}

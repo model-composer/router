@@ -11,7 +11,7 @@ class UrlGenerator
 	/**
 	 * Generate a URL for a given route with parameters
 	 */
-	public function generate(Route $route, ?int $id = null, array $params = []): ?string
+	public function generate(Route $route, int|array|null $element = null): ?string
 	{
 		$urlSegments = [];
 		$relationships = [];
@@ -20,8 +20,7 @@ class UrlGenerator
 			if ($segment['type'] === 'static') {
 				$urlSegments[] = $segment['value'];
 			} else {
-				$generated = $this->generateSegment($segment, $route, $id, $params, $relationships);
-				
+				$generated = $this->generateSegment($segment, $route, $element, $relationships);
 				if ($generated === null)
 					return null;
 
@@ -35,39 +34,33 @@ class UrlGenerator
 	/**
 	 * Generate a single URL segment from dynamic fields
 	 */
-	private function generateSegment(array $segment, Route $route, ?int $id, array $params, array &$relationships): ?string
+	private function generateSegment(array $segment, Route $route, int|array|null $element, array &$relationships): ?string
 	{
-		$fields = $segment['fields'];
 		$parts = [];
 
-		foreach ($fields as $field) {
+		foreach ($segment['parts'] as $part) {
 			$value = null;
 
-			// Check if it's the ID field
-			if ($field['name'] === $route->options['id_field'] and $id !== null) {
-				$value = $id;
-			}
-			// Check if we have the value in params
-			elseif (isset($params[$field['name']])) {
-				$value = $params[$field['name']];
-			}
-			// Check if it's a relationship field
-			elseif ($field['relationship'] !== null) {
-				$value = $this->resolveRelationshipField($field, $route, $id, $params, $relationships);
-			}
-			// Need to fetch from database
-			else {
-				$value = $this->fetchFieldValue($field, $route, $id, $params);
+			if ($part['type'] === 'static') {
+				$value = $part['value'];
+			} else if ($part['name'] === $route->options['id_field'] and $element !== null) {
+				// Check if it's the ID field
+				$value = is_numeric($element) ? (string)$element : ($element[$part['name']] ?? null);
+			} elseif (is_array($element) and isset($element[$part['name']])) {
+				// Check if we have the value in params
+				$value = $element[$part['name']];
+			} elseif ($part['relationships']) {
+				// Check if it's a relationship field
+				continue; // TODO
+			} else {
+				// Need to fetch from database
+				$value = $this->fetchFieldValue($part, $route, $element);
 			}
 
 			if ($value === null)
 				return null;
 
-			// URL encode the value
-			if ($route->options['lowercase'] and is_string($value))
-				$value = $this->urlEncode($value);
-
-			$parts[] = $value;
+			$parts[] = $this->urlEncode($route, (string)$value);
 		}
 
 		return implode('-', $parts);
@@ -76,7 +69,7 @@ class UrlGenerator
 	/**
 	 * Resolve a relationship field value
 	 */
-	private function resolveRelationshipField(array $field, Route $route, ?int $id, array $params, array &$relationships): ?string
+	private function resolveRelationshipField(array $field, Route $route, int|array|null $element, array &$relationships): ?string
 	{
 		$relationshipName = $field['relationship'];
 
@@ -89,7 +82,7 @@ class UrlGenerator
 			return null;
 
 		$relationshipTable = $this->resolver->resolveRelationship($relationshipName);
-		
+
 		if ($relationshipTable === null)
 			return null;
 
@@ -97,8 +90,8 @@ class UrlGenerator
 		if ($this->resolver === null or $route->options['table'] === null)
 			return null;
 
-		$mainRow = $this->fetchMainRow($route, $id, $params);
-		
+		$mainRow = $this->fetchMainRow($route, $element);
+
 		if ($mainRow === null)
 			return null;
 
@@ -114,7 +107,7 @@ class UrlGenerator
 
 		// Fetch the relationship row
 		$relationshipRow = $this->resolver->select($relationshipTable, ['id' => $relationshipId]);
-		
+
 		if ($relationshipRow === null)
 			return null;
 
@@ -127,13 +120,12 @@ class UrlGenerator
 	/**
 	 * Fetch field value from database
 	 */
-	private function fetchFieldValue(array $field, Route $route, ?int $id, array $params): ?string
+	private function fetchFieldValue(array $field, Route $route, int|array|null $element): ?string
 	{
-		if ($this->resolver === null or $route->options['table'] === null or $id === null)
+		if ($element === null)
 			return null;
 
-		$row = $this->fetchMainRow($route, $id, $params);
-		
+		$row = is_array($element) ? $element : $this->fetchMainRow($route, $element);
 		if ($row === null)
 			return null;
 
@@ -143,18 +135,16 @@ class UrlGenerator
 	/**
 	 * Fetch the main row from database (with caching)
 	 */
-	private function fetchMainRow(Route $route, ?int $id, array $params): ?array
+	private function fetchMainRow(Route $route, int $id): ?array
 	{
-		if ($id === null)
+		if ($this->resolver === null or $route->options['table'] === null)
 			return null;
 
 		$cacheKey = $route->options['table'] . '_' . $id;
-		
 		if (isset($this->cache[$cacheKey]))
 			return $this->cache[$cacheKey];
 
 		$row = $this->resolver->select($route->options['table'], [$route->options['id_field'] => $id]);
-		
 		if ($row !== null)
 			$this->cache[$cacheKey] = $row;
 
@@ -164,18 +154,21 @@ class UrlGenerator
 	/**
 	 * URL encode a string for use in URLs
 	 */
-	private function urlEncode(string $value): string
+	private function urlEncode(Route $route, string $value): string
 	{
-		// Convert to lowercase and replace spaces with dashes
-		$value = mb_strtolower($value);
+		// Convert to lowercase
+		if ($route->options['lowercase'])
+			$value = mb_strtolower($value);
+
+		// Replace whitespace with dashes
 		$value = preg_replace('/\s+/', '-', $value);
-		
+
 		// Remove special characters except dashes and underscores
 		$value = preg_replace('/[^a-z0-9а-я\p{Han}_-]/iu', '', $value);
-		
+
 		// Remove multiple consecutive dashes
 		$value = preg_replace('/-+/', '-', $value);
-		
+
 		// Trim dashes from ends
 		return trim($value, '-');
 	}
