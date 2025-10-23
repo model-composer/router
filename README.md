@@ -1,4 +1,4 @@
-# Modern Router
+# ModEl Router
 
 A standalone, framework-agnostic PHP router with bidirectional routing support, multi-field URL segments, and relationship resolution.
 
