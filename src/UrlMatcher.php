@@ -89,7 +89,7 @@ class UrlMatcher
 			return null;
 
 		// Build where clause
-		$where = [$field['name'] => $urlSegment];
+		$where = [$field['name'] => ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)]];
 
 		// Add parent relationship constraints
 		foreach ($relationships as $rel)
@@ -204,13 +204,17 @@ class UrlMatcher
 		$patterns = [];
 		for ($i = 1; $i <= $words - $fields + 1; $i++) {
 			$remaining = $words - $i;
-			$subPatterns = $this->createCombinationPatterns($remaining, $fields - 1);
 
+			$subPatterns = $this->createCombinationPatterns($remaining, $fields - 1);
 			foreach ($subPatterns as $subPattern)
 				$patterns[] = array_merge([$i], $subPattern);
 		}
 
 		return $patterns;
 	}
-}
 
+	private function parseSingleSegmentForQuery(string $segment): string
+	{
+		return implode('%', explode('-', $segment));
+	}
+}
