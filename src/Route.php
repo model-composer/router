@@ -50,22 +50,21 @@ class Route
 
 				foreach ($fieldParts as $fieldPart) {
 					if (str_starts_with($fieldPart, ':')) {
+						$fieldPart = substr($fieldPart, 1); // Remove leading ':'
 						// Check for relationship notation (e.g., category.name)
 						if (str_contains($fieldPart, '.')) {
 							$relationships = explode('.', $fieldPart, 2);
 							$field = array_pop($relationships);
 							$segment['parts'][] = [
 								'type' => 'field',
-								'name' => $fieldPart,
+								'name' => $field,
 								'relationships' => $relationships,
-								'field' => $field,
 							];
 						} else {
 							$segment['parts'][] = [
 								'type' => 'field',
 								'name' => $fieldPart,
 								'relationships' => [],
-								'field' => $fieldPart,
 							];
 						}
 

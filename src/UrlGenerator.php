@@ -75,7 +75,7 @@ class UrlGenerator
 
 		// Check if we already resolved this relationship
 		if (isset($relationships[$relationshipName]))
-			return $relationships[$relationshipName][$field['field']] ?? null;
+			return $relationships[$relationshipName][$field['name']] ?? null;
 
 		// Get the relationship table
 		if ($this->resolver === null)
@@ -114,7 +114,7 @@ class UrlGenerator
 		// Cache the relationship
 		$relationships[$relationshipName] = $relationshipRow;
 
-		return $relationshipRow[$field['field']] ?? null;
+		return $relationshipRow[$field['name']] ?? null;
 	}
 
 	/**
