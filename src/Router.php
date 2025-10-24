@@ -29,8 +29,26 @@ class Router
 				foreach ($providers as $provider) {
 					$providerRoutes = $provider['provider']::getRoutes();
 					foreach ($providerRoutes as $route)
-						$routes[] = new Route($route['pattern'], $route['controller'], $route['options'] ?? []);
+						$this->addRoute(new Route($route['pattern'], $route['controller'], $route['options'] ?? []));
 				}
+
+				usort($routes, function (Route $a, Route $b) {
+					if (count($a->segments) !== count($b->segments))
+						return count($b->segments) <=> count($a->segments); // More segments first
+
+					foreach ($a->segments as $idx => $segmentA) {
+						$segmentB = $b->segments[$idx] ?? null;
+						if ($segmentB === null)
+							break; // b has fewer segments
+
+						if ($segmentA['type'] === 'static' and $segmentB['type'] !== 'static')
+							return -1;
+						if ($segmentA['type'] !== 'static' and $segmentB['type'] === 'static')
+							return 1;
+					}
+
+					return 0;
+				});
 
 				return $routes;
 			});
@@ -42,15 +60,16 @@ class Router
 	}
 
 	/**
-	 * Manually add a route at runtime
+	 * Add a route internally, checking for duplicates
 	 */
-	public function addRoute(string $pattern, string $controller, array $options = []): self
+	private function addRoute(Route $route): void
 	{
-		if (!$this->routesLoaded)
-			$this->getRoutes(); // Ensure routes are loaded first
+		foreach ($this->routes as $existingRoute) {
+			if ($route->regex === $existingRoute->regex)
+				throw new \Exception('Route pattern already exists: ' . $route->pattern);
+		}
 
-		$this->routes[] = new Route($pattern, $controller, $options);
-		return $this;
+		$this->routes[] = $route;
 	}
 
 	/**

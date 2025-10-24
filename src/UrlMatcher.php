@@ -20,7 +20,9 @@ class UrlMatcher
 		if (count($urlSegments) < count($route->segments))
 			return null;
 
-		// TODO: regex matching for the whole route
+		// Quick regex check
+		if (!preg_match($route->regex, $url))
+			return null;
 
 		$relationships = [];
 		$id = null;

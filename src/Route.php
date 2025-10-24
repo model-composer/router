@@ -6,6 +6,7 @@ class Route
 	public string $controller;
 	public array $segments = [];
 	public array $options;
+	public string $regex;
 
 	public function __construct(string $pattern, string $controller, array $options = [])
 	{
@@ -16,8 +17,8 @@ class Route
 			'id_field' => 'id',
 			'relationships' => [],
 			'case_sensitive' => true,
-			'tags' => [],
 			'lowercase' => true,
+			'tags' => [],
 		], $options);
 
 		$this->parsePattern();
@@ -29,19 +30,16 @@ class Route
 	private function parsePattern(): void
 	{
 		$parts = explode('/', trim($this->pattern, '/'));
+		$regex = [];
 		foreach ($parts as $part) {
 			if (empty($part))
 				continue;
 
-			$segment = [
-				'type' => 'static',
-				'value' => $part,
-				'parts' => [],
-			];
-
 			// Check if this is a dynamic segment
 			if (str_contains($part, ':')) {
 				$segment['type'] = 'dynamic';
+
+				$regexParts = [];
 
 				// Parse multiple fields separated by dashes (e.g., :name-:surname)
 				$fieldParts = explode('-', $segment['value']);
@@ -66,17 +64,33 @@ class Route
 								'field' => $fieldPart,
 							];
 						}
+
+						$regexParts[] = '([^\/]+)'; // Match any non-slash characters
 					} else {
 						$segment['parts'][] = [
 							'type' => 'static',
 							'value' => $fieldPart,
 						];
+
+						$regexParts[] = preg_quote($fieldPart, '/');
 					}
 				}
+
+				$regex[] = implode('-', $regexParts);
+			} else {
+				$segment = [
+					'type' => 'static',
+					'value' => $part,
+					'parts' => [],
+				];
+
+				$regex[] = preg_quote($part, '/');
 			}
 
 			$this->segments[] = $segment;
 		}
+
+		$this->regex = '/^' . implode('\/', $regex) . '(\\/.*)?$/' . ($this->options['case_sensitive'] ? '' : 'i');
 	}
 
 	/**
