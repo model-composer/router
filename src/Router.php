@@ -9,7 +9,7 @@ class Router
 	/** @var Route[] */
 	private array $routes = [];
 	private bool $routesLoaded = false;
-	private ?array $currentRoute = null;
+	public ?array $activeRoute = null;
 
 	private ?UrlMatcher $matcher = null;
 	private ?UrlGenerator $generator = null;
@@ -31,8 +31,11 @@ class Router
 				$providers = Providers::find('RouterProvider');
 				foreach ($providers as $provider) {
 					$providerRoutes = $provider['provider']::getRoutes();
-					foreach ($providerRoutes as $route)
-						$this->addRoute($routes, $route['pattern'], $route['controller'], $route['options'] ?? []);
+					foreach ($providerRoutes as $route) {
+						$options = $route['options'] ?? [];
+						$options['tags']['provider'] = $provider['package'];
+						$this->addRoute($routes, $route['pattern'], $route['controller'], $options);
+					}
 				}
 
 				$config = Config::get('router');
@@ -92,16 +95,27 @@ class Router
 	 * Match a URL to a route
 	 * Returns ['controller' => string, 'params' => array] or null
 	 */
-	public function match(string $url, bool $setAsCurrent = false): ?array
+	public function match(string $url, bool $setAsActive = false): ?array
 	{
 		$matcher = $this->getMatcher();
 
 		foreach ($this->getRoutes() as $route) {
 			$result = $matcher->match($url, $route);
 			if ($result !== null) {
-				if ($setAsCurrent)
-					$this->currentRoute = $result;
-				return $result;
+				$parsedResult = [
+					...$result,
+					'pattern' => $route->pattern,
+					'controller' => $route->controller,
+					'model' => $route->options['model'] ?? null,
+					'table' => $route->options['table'] ?? null,
+					'tags' => $route->options['tags'] ?? [],
+					'route' => $route,
+				];
+
+				if ($setAsActive)
+					$this->activeRoute = $parsedResult;
+
+				return $parsedResult;
 			}
 		}
 
