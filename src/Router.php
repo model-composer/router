@@ -80,7 +80,7 @@ class Router
 	{
 		$matcher = $this->getMatcher();
 
-		foreach ($this->routes as $route) {
+		foreach ($this->getRoutes() as $route) {
 			$result = $matcher->match($url, $route);
 			if ($result !== null)
 				return $result;
@@ -114,7 +114,7 @@ class Router
 	public function getRoutesForController(string $controller, array $tags = []): array
 	{
 		$matching = [];
-		foreach ($this->routes as $route) {
+		foreach ($this->getRoutes() as $route) {
 			if ($route->controller === $controller and $route->matchesTags($tags))
 				$matching[] = $route;
 		}
