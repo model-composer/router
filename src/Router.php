@@ -39,7 +39,7 @@ class Router
 								$options['id_field'] = $this->resolver->getIdFieldFor($options['table']);
 						}
 
-						$route = new Route($route['pattern'], $route['controller'], $route['options'] ?? []);
+						$route = new Route($route['pattern'], $route['controller'], $options);
 						foreach ($routes as $existingRoute) {
 							if ($route->regex === $existingRoute->regex)
 								throw new \Exception('Route pattern already exists: ' . $route->pattern);
@@ -151,4 +151,3 @@ class Router
 		return $this->generator;
 	}
 }
-
