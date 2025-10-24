@@ -140,7 +140,7 @@ class Router
 		$matchingRoutes = $this->getRoutesForController($controller, $tags);
 
 		foreach ($matchingRoutes as $route) {
-			$url = $generator->generate($route, $element, $this->options);
+			$url = $generator->generate($route, $element, $this->options['base_path']);
 			if ($url !== null)
 				return $url;
 		}
