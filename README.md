@@ -203,18 +203,8 @@ The router automatically converts field values to URL-friendly format:
 ### Caching
 
 The UrlGenerator caches database lookups during URL generation to minimize queries.
+Routes are also cached after first loading.
 
 ### Combination Algorithm
 
-For multi-field segments, the router generates all possible word distributions and tries each until finding a match. This is the same algorithm as the original router.
-
-## Requirements
-
-- PHP 8.1 or higher
-- No external dependencies
-
-## License
-
-MIT
-
-
+For multi-field segments, the router generates all possible word distributions and tries each until finding a match.
