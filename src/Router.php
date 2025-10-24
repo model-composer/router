@@ -32,12 +32,12 @@ class Router
 				foreach ($providers as $provider) {
 					$providerRoutes = $provider['provider']::getRoutes();
 					foreach ($providerRoutes as $route)
-						$this->addRoute($route['pattern'], $route['controller'], $route['options'] ?? []);
+						$this->addRoute($routes, $route['pattern'], $route['controller'], $route['options'] ?? []);
 				}
 
 				$config = Config::get('router');
 				foreach (($config['routes'] ?? []) as $route)
-					$this->addRoute($route['pattern'], $route['controller'], $route['options'] ?? []);
+					$this->addRoute($routes, $route['pattern'], $route['controller'], $route['options'] ?? []);
 
 				// Sort routes: more specific first
 				usort($routes, function (Route $a, Route $b) {
