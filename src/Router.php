@@ -8,6 +8,7 @@ class Router
 	/** @var Route[] */
 	private array $routes = [];
 	private bool $routesLoaded = false;
+	private ?array $currentRoute = null;
 
 	private ?UrlMatcher $matcher = null;
 	private ?UrlGenerator $generator = null;
@@ -29,6 +30,15 @@ class Router
 				foreach ($providers as $provider) {
 					$providerRoutes = $provider['provider']::getRoutes();
 					foreach ($providerRoutes as $route) {
+						$options = $route['options'] ?? [];
+
+						if ($this->resolver) {
+							if (empty($options['table']) and !empty($options['model']))
+								$options['table'] = $this->resolver->getTableFromModel($options['model']);
+							if (empty($options['id_field']) and !empty($options['table']))
+								$options['id_field'] = $this->resolver->getIdFieldFor($options['table']);
+						}
+
 						$route = new Route($route['pattern'], $route['controller'], $route['options'] ?? []);
 						foreach ($routes as $existingRoute) {
 							if ($route->regex === $existingRoute->regex)
@@ -70,14 +80,17 @@ class Router
 	 * Match a URL to a route
 	 * Returns ['controller' => string, 'params' => array] or null
 	 */
-	public function match(string $url): ?array
+	public function match(string $url, bool $setAsCurrent = false): ?array
 	{
 		$matcher = $this->getMatcher();
 
 		foreach ($this->getRoutes() as $route) {
 			$result = $matcher->match($url, $route);
-			if ($result !== null)
+			if ($result !== null) {
+				if ($setAsCurrent)
+					$this->currentRoute = $result;
 				return $result;
+			}
 		}
 
 		return null;

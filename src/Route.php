@@ -13,6 +13,7 @@ class Route
 		$this->pattern = $pattern;
 		$this->controller = $controller;
 		$this->options = array_merge([
+			'model' => null,
 			'table' => null,
 			'id_field' => 'id',
 			'relationships' => [],

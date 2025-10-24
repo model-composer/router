@@ -49,6 +49,8 @@ class UrlMatcher
 
 		return [
 			'controller' => $route->controller,
+			'model' => $route->options['model'] ?? null,
+			'table' => $route->options['table'] ?? null,
 			'id' => $id,
 		];
 	}

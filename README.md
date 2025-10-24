@@ -34,7 +34,6 @@ class RouterProvider extends AbstractRouterProvider {
                 'controller' => 'PageController',
                 'options' => [
                     'table' => 'pages',
-                    'id_field' => 'id',
                 ],
             ],
             [
@@ -42,7 +41,6 @@ class RouterProvider extends AbstractRouterProvider {
                 'controller' => 'UserController',
                 'options' => [
                     'table' => 'users',
-                    'id_field' => 'id',
                 ],
             ],
         ];
