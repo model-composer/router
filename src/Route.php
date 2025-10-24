@@ -10,7 +10,7 @@ class Route
 
 	public function __construct(string $pattern, string $controller, array $options = [])
 	{
-		$this->pattern = $pattern;
+		$this->pattern = trim($pattern, '/');
 		$this->controller = $controller;
 		$this->options = array_merge([
 			'model' => null,
@@ -30,7 +30,7 @@ class Route
 	 */
 	private function parsePattern(): void
 	{
-		$parts = explode('/', trim($this->pattern, '/'));
+		$parts = explode('/', $this->pattern);
 		$regex = [];
 		foreach ($parts as $part) {
 			if (empty($part))
@@ -107,37 +107,5 @@ class Route
 				return false;
 		}
 		return true;
-	}
-
-	/**
-	 * Get all field names used in this route
-	 */
-	public function getFields(): array
-	{
-		$fields = [];
-		foreach ($this->segments as $segment) {
-			if ($segment['type'] === 'dynamic') {
-				foreach ($segment['fields'] as $field)
-					$fields[] = $field['name'];
-			}
-		}
-		return $fields;
-	}
-
-	/**
-	 * Get all relationships used in this route
-	 */
-	public function getRelationships(): array
-	{
-		$relationships = [];
-		foreach ($this->segments as $segment) {
-			if ($segment['type'] === 'dynamic') {
-				foreach ($segment['fields'] as $field) {
-					if ($field['relationship'] !== null and !in_array($field['relationship'], $relationships))
-						$relationships[] = $field['relationship'];
-				}
-			}
-		}
-		return $relationships;
 	}
 }

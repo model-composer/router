@@ -11,12 +11,16 @@ class Router
 	private array $routes = [];
 	private bool $routesLoaded = false;
 	public ?array $activeRoute = null;
-
+	private array $options = [];
 	private ?UrlMatcher $matcher = null;
 	private ?UrlGenerator $generator = null;
 
-	public function __construct(private ?ResolverInterface $resolver = null)
+	public function __construct(private ?ResolverInterface $resolver = null, array $options = [])
 	{
+		$this->options = [
+			'base_path' => '/',
+			...$options,
+		];
 	}
 
 	public function getRoutes(): array
@@ -136,7 +140,7 @@ class Router
 		$matchingRoutes = $this->getRoutesForController($controller, $tags);
 
 		foreach ($matchingRoutes as $route) {
-			$url = $generator->generate($route, $element);
+			$url = $generator->generate($route, $element, $this->options);
 			if ($url !== null)
 				return $url;
 		}
