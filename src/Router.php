@@ -3,6 +3,7 @@
 use Model\Cache\Cache;
 use Model\Config\Config;
 use Model\ProvidersFinder\Providers;
+use Model\Router\Events\UrlGenerate;
 
 class Router
 {
@@ -127,6 +128,8 @@ class Router
 	 */
 	public function generate(string $controller, int|array|null $element = null, array $tags = []): ?string
 	{
+		\Model\Events\Events::dispatch(new UrlGenerate($controller, $element, $tags));
+
 		$generator = $this->getGenerator();
 
 		// Find matching routes for this controller

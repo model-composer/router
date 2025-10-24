@@ -15,6 +15,7 @@
         "ext-mbstring": "*",
         "model/config": "^0.7.0",
         "model/providers-finder": "^0.3.7",
-        "model/cache": "^0.5.3"
+        "model/cache": "^0.5.3",
+        "model/events": "^0.2.1"
     }
 }
