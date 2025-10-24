@@ -37,12 +37,16 @@ class Route
 
 			// Check if this is a dynamic segment
 			if (str_contains($part, ':')) {
-				$segment['type'] = 'dynamic';
+				$segment = [
+					'type' => 'dynamic',
+					'value' => $part,
+					'parts' => [],
+				];
 
 				$regexParts = [];
 
 				// Parse multiple fields separated by dashes (e.g., :name-:surname)
-				$fieldParts = explode('-', $segment['value']);
+				$fieldParts = explode('-', $part);
 
 				foreach ($fieldParts as $fieldPart) {
 					if (str_starts_with($fieldPart, ':')) {
@@ -90,7 +94,7 @@ class Route
 			$this->segments[] = $segment;
 		}
 
-		$this->regex = '/^' . implode('\/', $regex) . '(\\/.*)?$/' . ($this->options['case_sensitive'] ? '' : 'i');
+		$this->regex = '/^\\/' . implode('\/', $regex) . '(\\/.*)?$/' . ($this->options['case_sensitive'] ? '' : 'i');
 	}
 
 	/**

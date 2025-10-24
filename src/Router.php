@@ -28,8 +28,15 @@ class Router
 				$providers = Providers::find('RouterProvider');
 				foreach ($providers as $provider) {
 					$providerRoutes = $provider['provider']::getRoutes();
-					foreach ($providerRoutes as $route)
-						$this->addRoute(new Route($route['pattern'], $route['controller'], $route['options'] ?? []));
+					foreach ($providerRoutes as $route) {
+						$route = new Route($route['pattern'], $route['controller'], $route['options'] ?? []);
+						foreach ($routes as $existingRoute) {
+							if ($route->regex === $existingRoute->regex)
+								throw new \Exception('Route pattern already exists: ' . $route->pattern);
+						}
+
+						$routes[] = $route;
+					}
 				}
 
 				usort($routes, function (Route $a, Route $b) {
@@ -57,19 +64,6 @@ class Router
 		}
 
 		return $this->routes;
-	}
-
-	/**
-	 * Add a route internally, checking for duplicates
-	 */
-	private function addRoute(Route $route): void
-	{
-		foreach ($this->routes as $existingRoute) {
-			if ($route->regex === $existingRoute->regex)
-				throw new \Exception('Route pattern already exists: ' . $route->pattern);
-		}
-
-		$this->routes[] = $route;
 	}
 
 	/**
