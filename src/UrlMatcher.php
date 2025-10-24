@@ -65,8 +65,11 @@ class UrlMatcher
 		$fields = [];
 		foreach ($parts as $part) {
 			if ($part['type'] === 'field') {
-				if (!$part['relationships'] and $part['name'] === $route->options['id_field']) // If there is the id field, extract it directly
-					return $this->extractId($urlSegment, $part, $route);
+				if (!$part['relationships'] and $part['name'] === $route->options['id_field']) { // If there is the id field, try to extract it directly
+					$id_check = $this->extractId($urlSegment, $segment, $part['name']);
+					if ($id_check)
+						return $id_check;
+				}
 
 				$fields[] = $part;
 			}
@@ -107,16 +110,12 @@ class UrlMatcher
 	/**
 	 * Extract ID field from URL segment
 	 */
-	private function extractId(string $urlSegment, array $field, Route $route): ?int
+	private function extractId(string $urlSegment, array $segment, string $id_field): ?int
 	{
-		$pattern = explode('-', $route->pattern);
-		$words = explode('-', $urlSegment);
-		foreach ($pattern as $idx => $part) {
-			if (ltrim($part, ':') === $field['name'] and isset($words[$idx]) and is_numeric($words[$idx]))
-				return $words[$idx];
-		}
-
-		return null;
+		$regex = str_replace(':' . $id_field, '([0-9]+)', $segment['value']);
+		$regex = preg_replace('/:[a-z0-9_]+/i', '.*', $regex);
+		$id = preg_replace('/^' . $regex . '$/i', '$1', $urlSegment);
+		return $id ? (int)$id : null;
 	}
 
 	/**
