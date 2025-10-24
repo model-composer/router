@@ -19,7 +19,10 @@ class ModElResolver implements ResolverInterface
 
 	public function getTableFromModel(string $model): ?string
 	{
-		return $model::$table;
+		$modElElement = \Model\Core\Autoloader::searchFile('Element', $model);
+		if (!$modElElement)
+			$this->model->error('Element ' . $model . ' not found');
+		return $modElElement::$table;
 	}
 
 	public function resolveRelationship(string $relationship): ?string
