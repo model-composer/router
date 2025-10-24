@@ -1,6 +1,7 @@
 <?php namespace Model\Router;
 
 use Model\Cache\Cache;
+use Model\Config\Config;
 use Model\ProvidersFinder\Providers;
 
 class Router
@@ -26,29 +27,19 @@ class Router
 				$item->expiresAfter(3600 * 24);
 
 				$routes = [];
+
 				$providers = Providers::find('RouterProvider');
 				foreach ($providers as $provider) {
 					$providerRoutes = $provider['provider']::getRoutes();
-					foreach ($providerRoutes as $route) {
-						$options = $route['options'] ?? [];
-
-						if ($this->resolver) {
-							if (empty($options['table']) and !empty($options['model']))
-								$options['table'] = $this->resolver->getTableFromModel($options['model']);
-							if (empty($options['id_field']) and !empty($options['table']))
-								$options['id_field'] = $this->resolver->getIdFieldFor($options['table']);
-						}
-
-						$route = new Route($route['pattern'], $route['controller'], $options);
-						foreach ($routes as $existingRoute) {
-							if ($route->regex === $existingRoute->regex)
-								throw new \Exception('Route pattern already exists: ' . $route->pattern);
-						}
-
-						$routes[] = $route;
-					}
+					foreach ($providerRoutes as $route)
+						$this->addRoute($route['pattern'], $route['controller'], $route['options'] ?? []);
 				}
 
+				$config = Config::get('router');
+				foreach (($config['routes'] ?? []) as $route)
+					$this->addRoute($route['pattern'], $route['controller'], $route['options'] ?? []);
+
+				// Sort routes: more specific first
 				usort($routes, function (Route $a, Route $b) {
 					if (count($a->segments) !== count($b->segments))
 						return count($b->segments) <=> count($a->segments); // More segments first
@@ -74,6 +65,27 @@ class Router
 		}
 
 		return $this->routes;
+	}
+
+	/**
+	 * Add a route to the array
+	 */
+	private function addRoute(array &$routes, string $pattern, string $controller, array $options = []): void
+	{
+		if ($this->resolver) {
+			if (empty($options['table']) and !empty($options['model']))
+				$options['table'] = $this->resolver->getTableFromModel($options['model']);
+			if (empty($options['id_field']) and !empty($options['table']))
+				$options['id_field'] = $this->resolver->getIdFieldFor($options['table']);
+		}
+
+		$route = new Route($pattern, $controller, $options);
+		foreach ($routes as $existingRoute) {
+			if ($route->regex === $existingRoute->regex)
+				throw new \Exception('Route pattern already exists: ' . $route->pattern);
+		}
+
+		$routes[] = $route;
 	}
 
 	/**
