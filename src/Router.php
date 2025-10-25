@@ -129,18 +129,24 @@ class Router
 	{
 		\Model\Events\Events::dispatch(new UrlGenerate($controller, $element, $tags));
 
-		$generator = $this->getGenerator();
+		$cache = Cache::getCacheAdapter();
 
-		// Find matching routes for this controller
-		$matchingRoutes = $this->getRoutesForController($controller, $tags);
+		return $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
+			$item->expiresAfter(60 * 5);
 
-		foreach ($matchingRoutes as $route) {
-			$url = $generator->generate($route, $element, $this->options['base_path']);
-			if ($url !== null)
-				return $url;
-		}
+			$generator = $this->getGenerator();
 
-		return null;
+			// Find matching routes for this controller
+			$matchingRoutes = $this->getRoutesForController($controller, $tags);
+
+			foreach ($matchingRoutes as $route) {
+				$url = $generator->generate($route, $element, $this->options['base_path']);
+				if ($url !== null)
+					return $url;
+			}
+
+			return null;
+		});
 	}
 
 	/**
