@@ -62,7 +62,7 @@ class UrlMatcher
 		$fields = [];
 		foreach ($parts as $part) {
 			if ($part['type'] === 'field') {
-				if (!$part['relationships'] and $part['name'] === $this->resolver->getIdField($route->options['entity'])) { // If there is the id field, try to extract it directly
+				if (!$part['relationships'] and $part['name'] === $this->resolver->getPrimary($route->options['entity'])) { // If there is the id field, try to extract it directly
 					$id_check = $this->extractId($urlSegment, $segment, $part['name']);
 					if ($id_check)
 						return $id_check;
@@ -91,17 +91,17 @@ class UrlMatcher
 			return null;
 
 		// Build where clause
-		$where = [$field['name'] => ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)]];
+		$filters = [$field['name'] => ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)]];
 
 		// Add parent relationship constraints
 		foreach ($relationships as $rel)
-			$where = array_merge($where, $rel);
+			$filters = array_merge($filters, $rel);
 
-		$row = $this->resolver->fetch($route->options['entity'], $where);
+		$row = $this->resolver->fetch($route->options['entity'], null, $filters);
 		if ($row === null)
 			return null;
 
-		return $row[$this->resolver->getIdField($route->options['entity'])];
+		return $row[$this->resolver->getPrimary($route->options['entity'])];
 	}
 
 	/**
@@ -133,19 +133,19 @@ class UrlMatcher
 
 		// Try each combination
 		foreach ($combinations as $combination) {
-			$where = [];
+			$filters = [];
 			foreach ($combination as $fieldName => $value) {
 				// Use LIKE for partial matching
-				$where[] = [$fieldName, 'LIKE', '%' . $value . '%'];
+				$filters[] = [$fieldName, 'LIKE', '%' . $value . '%'];
 			}
 
 			// Add parent relationship constraints
 			foreach ($relationships as $rel)
-				$where = array_merge($where, $rel);
+				$filters = array_merge($filters, $rel);
 
-			$row = $this->resolver->fetch($route->options['entity'], $where);
+			$row = $this->resolver->fetch($route->options['entity'], null, $filters);
 			if ($row !== null)
-				return $row[$this->resolver->getIdField($route->options['entity'])];
+				return $row[$this->resolver->getPrimary($route->options['entity'])];
 		}
 
 		return null;

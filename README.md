@@ -161,7 +161,7 @@ URL: `/products/electronics/123-laptop` → Looks up:
 ### Available Options
 
 - `table` (string): Database table for lookups
-- `id_field` (string): Primary key field name (default: 'id')
+- `primary` (string): Primary key field name (default: 'id')
 - `relationships` (array): Relationship configuration
 - `case_sensitive` (bool): Case-sensitive matching (default: false)
 - `tags` (array): Additional metadata for route filtering

@@ -4,9 +4,9 @@ interface ResolverInterface
 {
 	public function parseEntity(string|array $entity): ?array;
 
-	public function getIdField(array $entity): string;
+	public function getPrimary(array $entity): string;
 
-	public function fetch(array $entity, array $where): ?array;
+	public function fetch(array $entity, int $id, ?array $filters = []): ?array;
 
-	public function resolveRelationship(string $relationship): ?string;
+	public function resolveRelationship(array $entity, array $row, array $relationship): ?string;
 }

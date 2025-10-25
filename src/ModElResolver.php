@@ -4,6 +4,10 @@ use Model\Db\Db;
 
 class ModElResolver implements ResolverInterface
 {
+	public function __construct(private \Model\Core\Core $model)
+	{
+	}
+
 	public function parseEntity(string|array $entity): ?array
 	{
 		if (is_string($entity))
@@ -21,30 +25,42 @@ class ModElResolver implements ResolverInterface
 		if (empty($entity['table']))
 			throw new \Exception('Entity must define a table or element');
 
-		if (empty($entity['id_field'])) {
+		if (empty($entity['primary'])) {
 			$db = Db::getConnection();
 			$tableModel = $db->getTable($entity['table']);
-			$entity['id_field'] = $tableModel->primary ? $tableModel->primary[0] : null;
-			if (!$entity['id_field'])
+			$entity['primary'] = $tableModel->primary ? $tableModel->primary[0] : null;
+			if (!$entity['primary'])
 				throw new \Exception('Table ' . $entity['table'] . ' does not have a primary key defined');
 		}
 
 		return $entity;
 	}
 
-	public function getIdField(array $entity): string
+	public function getPrimary(array $entity): string
 	{
-		return $entity['id_field'];
+		return $entity['primary'];
 	}
 
-	public function fetch(array $entity, array $where): ?array
+	public function fetch(array $entity, ?int $id, ?array $filters = []): ?array
 	{
-		$db = Db::getConnection();
-		return $db->select($entity['table'], $where);
+		if ($id)
+			$filters[$entity['primary']] = $id;
+
+		return Db::getConnection()->select($entity['table'], $filters);
 	}
 
-	public function resolveRelationship(string $relationship): ?string
+	public function resolveRelationship(array $entity, array|int $row, array $relationship): string
 	{
-		return null; // TODO
+		if (!$entity['element'])
+			throw new \Exception('Element resolver can only resolve relationships for elements');
+
+		$curr_element = $this->model->getModule('ORM')->one($entity['element'], is_numeric($row) ? $row : $row[$entity['primary']]);
+		foreach ($relationship['relationships'] as $rel) {
+			$curr_element = $curr_element->{$rel};
+			if (!$curr_element)
+				throw new \Exception('Could not resolve relationship ' . $rel);
+		}
+
+		return $curr_element[$relationship['field']];
 	}
 }

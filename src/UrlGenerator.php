@@ -15,12 +15,13 @@ class UrlGenerator
 	{
 		$urlSegments = [];
 		$relationships = [];
+		$main_row = null;
 
 		foreach ($route->segments as $segment) {
 			if ($segment['type'] === 'static') {
 				$urlSegments[] = $segment['value'];
 			} else {
-				$generated = $this->generateSegment($segment, $route, $element, $relationships);
+				$generated = $this->generateSegment($segment, $route, $element, $relationships, $main_row);
 				if ($generated === null)
 					return null;
 
@@ -28,13 +29,26 @@ class UrlGenerator
 			}
 		}
 
-		return $base_path . implode('/', $urlSegments);
+		$url = $base_path . implode('/', $urlSegments);
+
+		if ($relationships) {
+			if (!$main_row)
+				return null;
+
+			// Resolve relationships
+			foreach ($relationships as $idx => $relationship) {
+				$resolved = $this->resolver->resolveRelationship($route->options['entity'], $main_row, $relationship);
+				$url = str_replace('//rel' . $idx . '//', $this->urlEncode($route, $resolved), $url);
+			}
+		}
+
+		return $url;
 	}
 
 	/**
 	 * Generate a single URL segment from dynamic fields
 	 */
-	private function generateSegment(array $segment, Route $route, int|array|null $element, array &$relationships): ?string
+	private function generateSegment(array $segment, Route $route, int|array|null $element, array &$relationships, array|int|null &$main_row): ?string
 	{
 		$parts = [];
 
@@ -43,18 +57,28 @@ class UrlGenerator
 
 			if ($part['type'] === 'static') {
 				$value = $part['value'];
-			} else if ($part['name'] === $this->resolver->getIdField($route->options['entity']) and $element !== null) {
+			} else if ($part['name'] === $this->resolver->getPrimary($route->options['entity']) and $element !== null) {
 				// Check if it's the ID field
 				$value = is_numeric($element) ? (string)$element : ($element[$part['name']] ?? null);
+				if ($main_row === null)
+					$value = $element;
 			} elseif (is_array($element) and isset($element[$part['name']])) {
 				// Check if we have the value in params
 				$value = $element[$part['name']];
 			} elseif ($part['relationships']) {
-				// Check if it's a relationship field
-				continue; // TODO
-			} else {
+				// If it's a relationship field, add it to the relationships to resolve
+				$value = '//rel' . count($relationships) . '//'; // Placeholder
+				$relationships[] = $part;
+			} elseif ($element !== null) {
 				// Need to fetch from database
-				$value = $this->fetchFieldValue($part, $route, $element);
+				$row = is_array($element) ? $element : $this->fetchMainRow($route, $element);
+				if ($row === null)
+					return null;
+
+				if ($main_row === null or is_numeric($main_row))
+					$main_row = $row;
+
+				return $row[$part['name']] ?? null;
 			}
 
 			if ($value === null)
@@ -64,73 +88,6 @@ class UrlGenerator
 		}
 
 		return implode('-', $parts);
-	}
-
-	/**
-	 * TODO: rewrite
-	 * Resolve a relationship field value
-	 */
-	private function resolveRelationshipField(array $field, Route $route, int|array|null $element, array &$relationships): ?string
-	{
-		$relationshipName = $field['relationship'];
-
-		// Check if we already resolved this relationship
-		if (isset($relationships[$relationshipName]))
-			return $relationships[$relationshipName][$field['name']] ?? null;
-
-		// Get the relationship table
-		if ($this->resolver === null)
-			return null;
-
-		$relationshipTable = $this->resolver->resolveRelationship($relationshipName);
-
-		if ($relationshipTable === null)
-			return null;
-
-		// First, we need to get the relationship ID from the main entity
-		if ($this->resolver === null or !$route->options['entity'])
-			return null;
-
-		$mainRow = $this->fetchMainRow($route, $element);
-
-		if ($mainRow === null)
-			return null;
-
-		// Get the foreign key field name (assume it's relationship name + _id)
-		$foreignKeyField = $relationshipName . '_id';
-		if (!isset($mainRow[$foreignKeyField]))
-			$foreignKeyField = $relationshipName; // Try without _id suffix
-
-		if (!isset($mainRow[$foreignKeyField]))
-			return null;
-
-		$relationshipId = $mainRow[$foreignKeyField];
-
-		// Fetch the relationship row
-		$relationshipRow = $this->resolver->fetch($relationshipTable, ['id' => $relationshipId]);
-
-		if ($relationshipRow === null)
-			return null;
-
-		// Cache the relationship
-		$relationships[$relationshipName] = $relationshipRow;
-
-		return $relationshipRow[$field['name']] ?? null;
-	}
-
-	/**
-	 * Fetch field value from database
-	 */
-	private function fetchFieldValue(array $field, Route $route, int|array|null $element): ?string
-	{
-		if ($element === null)
-			return null;
-
-		$row = is_array($element) ? $element : $this->fetchMainRow($route, $element);
-		if ($row === null)
-			return null;
-
-		return $row[$field['name']] ?? null;
 	}
 
 	/**
@@ -145,7 +102,7 @@ class UrlGenerator
 		if (isset($this->cache[$cacheKey]))
 			return $this->cache[$cacheKey];
 
-		$row = $this->resolver->fetch($route->options['entity'], [$this->resolver->getIdField($route->options['entity']) => $id]);
+		$row = $this->resolver->fetch($route->options['entity'], $id);
 		if ($row !== null)
 			$this->cache[$cacheKey] = $row;
 
