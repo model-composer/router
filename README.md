@@ -33,14 +33,18 @@ class RouterProvider extends AbstractRouterProvider {
                 'pattern' => '/pages/:name',
                 'controller' => 'PageController',
                 'options' => [
-                    'table' => 'pages',
+                    'entity' => [
+                        'table' => 'pages',
+                    ],
                 ],
             ],
             [
                 'pattern' => '/users/:name-:surname',
                 'controller' => 'UserController',
                 'options' => [
-                    'table' => 'users',
+                    'entity' => [
+                        'table' => 'users',
+                    ],
                 ],
             ],
         ];
@@ -96,7 +100,9 @@ $url = $router->generate('UserController', [
     'pattern' => '/pages/:name',
     'controller' => 'PageController',
     'options' => [
-        'table' => 'pages',
+        'entity' => [
+            'table' => 'pages',
+        ],
     ],
 ]
 ```
@@ -121,7 +127,9 @@ URL: `/pages/123` → Directly matches ID 123
     'pattern' => '/pages/:name-:surname',
     'controller' => 'UserController',
     'options' => [
-        'table' => 'users',
+        'entity' => [
+            'table' => 'users',
+        ],
     ],
 ]
 ```
@@ -137,7 +145,9 @@ URL: `/users/john-doe-smith` → Tries combinations:
     'pattern' => '/products/:category.name/:id-:name',
     'controller' => 'ProductController',
     'options' => [
-        'table' => 'products',
+        'entity' => [
+            'table' => 'products',
+        ],
     ],
 ]
 ```
@@ -164,8 +174,9 @@ URL: `/products/electronics/123-laptop` → Looks up:
     'pattern' => '/blog/:category.name/:id-:slug',
     'controller' => 'BlogController',
     'options' => [
-        'table' => 'blog_posts',
-        'id_field' => 'id',
+        'entity' => [
+            'table' => 'blog_posts',
+        ],
         'case_sensitive' => false,
         'tags' => [
             'lang' => 'en',

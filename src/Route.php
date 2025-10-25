@@ -13,9 +13,7 @@ class Route
 		$this->pattern = trim($pattern, '/');
 		$this->controller = $controller;
 		$this->options = array_merge([
-			'model' => null,
-			'table' => null,
-			'id_field' => 'id',
+			'entity' => null,
 			'relationships' => [],
 			'case_sensitive' => true,
 			'lowercase' => true,

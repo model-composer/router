@@ -80,12 +80,8 @@ class Router
 	 */
 	private function addRoute(array &$routes, string $pattern, string $controller, array $options = []): void
 	{
-		if ($this->resolver) {
-			if (empty($options['table']) and !empty($options['model']))
-				$options['table'] = $this->resolver->getTableFromModel($options['model']);
-			if (empty($options['id_field']) and !empty($options['table']))
-				$options['id_field'] = $this->resolver->getIdFieldFor($options['table']);
-		}
+		if ($this->resolver and $options['entity'])
+			$options['entity'] = $this->resolver->parseEntity($options['entity']);
 
 		$route = new Route($pattern, $controller, $options);
 		foreach ($routes as $existingRoute) {
@@ -111,8 +107,7 @@ class Router
 					...$result,
 					'pattern' => $route->pattern,
 					'controller' => $route->controller,
-					'model' => $route->options['model'] ?? null,
-					'table' => $route->options['table'] ?? null,
+					'entity' => $route->options['entity'] ?? null,
 					'tags' => $route->options['tags'] ?? [],
 					'route' => $route,
 				];

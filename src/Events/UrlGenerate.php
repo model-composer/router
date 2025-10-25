@@ -4,7 +4,7 @@ use Model\Events\AbstractEvent;
 
 class UrlGenerate extends AbstractEvent
 {
-	public function __construct(private ?string $controller = null, private int|array|null $element = null, private array $tags = [])
+	public function __construct(private ?string $controller = null, private int|array|null $entity = null, private array $tags = [])
 	{
 	}
 
@@ -12,7 +12,7 @@ class UrlGenerate extends AbstractEvent
 	{
 		return [
 			'controller' => $this->controller,
-			'element' => $this->element,
+			'entity' => $this->entity,
 			'tags' => $this->tags,
 		];
 	}

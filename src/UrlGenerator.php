@@ -43,7 +43,7 @@ class UrlGenerator
 
 			if ($part['type'] === 'static') {
 				$value = $part['value'];
-			} else if ($part['name'] === $route->options['id_field'] and $element !== null) {
+			} else if ($part['name'] === $this->resolver->getIdField($route->options['entity']) and $element !== null) {
 				// Check if it's the ID field
 				$value = is_numeric($element) ? (string)$element : ($element[$part['name']] ?? null);
 			} elseif (is_array($element) and isset($element[$part['name']])) {
@@ -67,6 +67,7 @@ class UrlGenerator
 	}
 
 	/**
+	 * TODO: rewrite
 	 * Resolve a relationship field value
 	 */
 	private function resolveRelationshipField(array $field, Route $route, int|array|null $element, array &$relationships): ?string
@@ -87,7 +88,7 @@ class UrlGenerator
 			return null;
 
 		// First, we need to get the relationship ID from the main entity
-		if ($this->resolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
 		$mainRow = $this->fetchMainRow($route, $element);
@@ -106,7 +107,7 @@ class UrlGenerator
 		$relationshipId = $mainRow[$foreignKeyField];
 
 		// Fetch the relationship row
-		$relationshipRow = $this->resolver->select($relationshipTable, ['id' => $relationshipId]);
+		$relationshipRow = $this->resolver->fetch($relationshipTable, ['id' => $relationshipId]);
 
 		if ($relationshipRow === null)
 			return null;
@@ -137,14 +138,14 @@ class UrlGenerator
 	 */
 	private function fetchMainRow(Route $route, int $id): ?array
 	{
-		if ($this->resolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
-		$cacheKey = $route->options['table'] . '_' . $id;
+		$cacheKey = json_encode($route->options['entity']) . '_' . $id;
 		if (isset($this->cache[$cacheKey]))
 			return $this->cache[$cacheKey];
 
-		$row = $this->resolver->select($route->options['table'], [$route->options['id_field'] => $id]);
+		$row = $this->resolver->fetch($route->options['entity'], [$this->resolver->getIdField($route->options['entity']) => $id]);
 		if ($row !== null)
 			$this->cache[$cacheKey] = $row;
 

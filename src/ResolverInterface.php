@@ -2,11 +2,11 @@
 
 interface ResolverInterface
 {
-	public function getIdFieldFor(string $table): ?string;
+	public function parseEntity(string|array $entity): ?array;
 
-	public function select(string $table, array $where): ?array;
+	public function getIdField(array $entity): string;
 
-	public function getTableFromModel(string $model): ?string;
+	public function fetch(array $entity, array $where): ?array;
 
 	public function resolveRelationship(string $relationship): ?string;
 }

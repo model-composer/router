@@ -62,7 +62,7 @@ class UrlMatcher
 		$fields = [];
 		foreach ($parts as $part) {
 			if ($part['type'] === 'field') {
-				if (!$part['relationships'] and $part['name'] === $route->options['id_field']) { // If there is the id field, try to extract it directly
+				if (!$part['relationships'] and $part['name'] === $this->resolver->getIdField($route->options['entity'])) { // If there is the id field, try to extract it directly
 					$id_check = $this->extractId($urlSegment, $segment, $part['name']);
 					if ($id_check)
 						return $id_check;
@@ -87,7 +87,7 @@ class UrlMatcher
 	 */
 	private function extractSingleField(string $urlSegment, array $field, Route $route, array $relationships): ?int
 	{
-		if ($this->resolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
 		// Build where clause
@@ -97,11 +97,11 @@ class UrlMatcher
 		foreach ($relationships as $rel)
 			$where = array_merge($where, $rel);
 
-		$row = $this->resolver->select($route->options['table'], $where);
+		$row = $this->resolver->fetch($route->options['entity'], $where);
 		if ($row === null)
 			return null;
 
-		return $row[$route->options['id_field']];
+		return $row[$this->resolver->getIdField($route->options['entity'])];
 	}
 
 	/**
@@ -120,7 +120,7 @@ class UrlMatcher
 	 */
 	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $relationships): ?int
 	{
-		if ($this->resolver === null or $route->options['table'] === null)
+		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
 		$words = explode('-', $urlSegment);
@@ -143,9 +143,9 @@ class UrlMatcher
 			foreach ($relationships as $rel)
 				$where = array_merge($where, $rel);
 
-			$row = $this->resolver->select($route->options['table'], $where);
+			$row = $this->resolver->fetch($route->options['entity'], $where);
 			if ($row !== null)
-				return $row[$route->options['id_field']];
+				return $row[$this->resolver->getIdField($route->options['entity'])];
 		}
 
 		return null;
