@@ -80,7 +80,7 @@ class Router
 	 */
 	private function addRoute(array &$routes, string $pattern, string $controller, array $options = []): void
 	{
-		if ($this->resolver and $options['entity'])
+		if ($this->resolver and !empty($options['entity']))
 			$options['entity'] = $this->resolver->parseEntity($options['entity']);
 
 		$route = new Route($pattern, $controller, $options);
