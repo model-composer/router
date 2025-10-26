@@ -27,7 +27,7 @@ class UrlMatcher
 		$relationships = [];
 		$id = null;
 
-		// Match each segment
+		// First pass: look for exact id, if present, match static segments and collect relationships
 		foreach ($route->segments as $index => $segment) {
 			$urlSegment = $urlSegments[$index];
 
@@ -40,68 +40,72 @@ class UrlMatcher
 				if (!$matches)
 					return null;
 			} else {
-				// Dynamic segment - extract parameters
-				$id = $this->extractFromSegment($urlSegment, $segment, $route, $relationships);
-				if ($id === null)
-					return null;
+				// Dynamic segment
+				foreach ($segment['parts'] as $part) {
+					if ($part['type'] !== 'field')
+						continue;
+
+					if (count($part['relationships'] ?? []) > 0) {
+						// Collect relationships for later use
+						$relationships[] = $part;
+					} elseif ($part['name'] === $this->resolver->getPrimary($route->options['entity'])) { // If there is the id field, try to extract it directly
+						// Look for id
+						$id_check = $this->extractId($urlSegment, $segment, $part['name']);
+						if ($id_check) {
+							$id = $id_check;
+							break 2; // ID found, skip further processing
+						}
+					}
+				}
 			}
+		}
+
+		$joins = [];
+		$filters = [];
+
+		if (count($relationships) > 0) {
+			// Build joins and filters for relationships
+			foreach ($relationships as $rel) {
+				$relInfo = $this->resolver->parseRelationshipForMatch($rel);
+				if ($relInfo === null)
+					return null;
+
+				if ($relInfo['joins'] ?? [])
+					$joins = [...$joins, ...$relInfo['joins']];
+				if ($relInfo['filters'] ?? [])
+					$filters = [...$filters, ...$relInfo['filters']];
+			}
+		}
+
+		foreach ($route->segments as $index => $segment) {
+			if ($segment['type'] === 'static')
+				continue;
+
+			// Dynamic segment
+
+			$urlSegment = $urlSegments[$index];
+
+			$fields = [];
+			foreach ($segment['parts'] as $part) {
+				if ($part['type'] === 'field')
+					$fields[] = $part;
+			}
+
+			if (count($fields) === 0)
+				return null;
+
+			if (count($fields) === 1)
+				$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters, $joins);
+			else
+				$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters, $joins);
+
+			if (!$id)
+				return null;
 		}
 
 		return [
 			'id' => $id,
 		];
-	}
-
-	/**
-	 * Extract parameters from a dynamic URL segment
-	 */
-	private function extractFromSegment(string $urlSegment, array $segment, Route $route, array &$relationships): ?int
-	{
-		$parts = $segment['parts'];
-
-		$fields = [];
-		foreach ($parts as $part) {
-			if ($part['type'] === 'field') {
-				if (!$part['relationships'] and $part['name'] === $this->resolver->getPrimary($route->options['entity'])) { // If there is the id field, try to extract it directly
-					$id_check = $this->extractId($urlSegment, $segment, $part['name']);
-					if ($id_check)
-						return $id_check;
-				}
-
-				$fields[] = $part;
-			}
-		}
-
-		// TODO: handle relationships
-
-		// Multiple fields in one segment - try combinations
-		if (count($fields) > 1)
-			return $this->extractMultipleFields($urlSegment, $fields, $route, $relationships);
-
-		// Single field - look up in database
-		return $this->extractSingleField($urlSegment, $fields[0], $route, $relationships);
-	}
-
-	/**
-	 * Extract a single field from URL segment
-	 */
-	private function extractSingleField(string $urlSegment, array $field, Route $route, array $relationships): ?int
-	{
-		if ($this->resolver === null or !$route->options['entity'])
-			return null;
-
-		// Build where clause
-		$filters = [$field['name'] => ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)]];
-
-		// Add parent relationship constraints
-		foreach ($relationships as $rel)
-			$filters = array_merge($filters, $rel);
-
-		$row = $this->resolver->fetch($route->options['entity'], null, $filters);
-		if ($row === null)
-			return null;
-
-		return $row[$this->resolver->getPrimary($route->options['entity'])];
 	}
 
 	/**
@@ -116,15 +120,33 @@ class UrlMatcher
 	}
 
 	/**
+	 * Extract a single field from URL segment
+	 */
+	private function extractSingleField(string $urlSegment, array $field, Route $route, array $filters, array $joins): ?int
+	{
+		if ($this->resolver === null or !$route->options['entity'])
+			return null;
+
+		// Build where clause
+		$filters[$field['name']] = ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)];
+
+
+		$row = $this->resolver->fetch($route->options['entity'], null, $filters, $joins);
+		if ($row === null)
+			return null;
+
+		return $row[$this->resolver->getPrimary($route->options['entity'])];
+	}
+
+	/**
 	 * Extract multiple fields from a single URL segment (e.g., john-doe)
 	 */
-	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $relationships): ?int
+	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $filters, array $joins): ?int
 	{
 		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
 		$words = explode('-', $urlSegment);
-
 		if (count($words) < count($fields))
 			return null;
 
@@ -133,17 +155,13 @@ class UrlMatcher
 
 		// Try each combination
 		foreach ($combinations as $combination) {
-			$filters = [];
+			$combination_filters = [...$filters];
 			foreach ($combination as $fieldName => $value) {
 				// Use LIKE for partial matching
-				$filters[] = [$fieldName, 'LIKE', '%' . $value . '%'];
+				$combination_filters[$fieldName] = ['LIKE', '%' . $value . '%'];
 			}
 
-			// Add parent relationship constraints
-			foreach ($relationships as $rel)
-				$filters = array_merge($filters, $rel);
-
-			$row = $this->resolver->fetch($route->options['entity'], null, $filters);
+			$row = $this->resolver->fetch($route->options['entity'], null, $combination_filters, $joins);
 			if ($row !== null)
 				return $row[$this->resolver->getPrimary($route->options['entity'])];
 		}

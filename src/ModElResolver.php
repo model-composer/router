@@ -41,15 +41,20 @@ class ModElResolver implements ResolverInterface
 		return $entity['primary'];
 	}
 
-	public function fetch(array $entity, ?int $id, ?array $filters = []): ?array
+	public function fetch(array $entity, ?int $id, array $filters = [], array $joins = []): ?array
 	{
 		if ($id)
 			$filters[$entity['primary']] = $id;
 
-		return Db::getConnection()->select($entity['table'], $filters);
+		return Db::getConnection()->select($entity['table'], $filters, ['joins' => $joins]);
 	}
 
-	public function resolveRelationship(array $entity, array|int $row, array $relationship): string
+	public function parseRelationshipForMatch(array $relationship): ?array
+	{
+		return []; // TODO
+	}
+
+	public function resolveRelationshipForGeneration(array $entity, array|int $row, array $relationship): string
 	{
 		if (!$entity['element'])
 			throw new \Exception('Element resolver can only resolve relationships for elements');
