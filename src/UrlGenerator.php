@@ -54,6 +54,7 @@ class UrlGenerator
 
 		foreach ($segment['parts'] as $part) {
 			$value = null;
+			$encode = true;
 
 			if ($part['type'] === 'static') {
 				$value = $part['value'];
@@ -68,6 +69,7 @@ class UrlGenerator
 			} elseif ($part['relationships']) {
 				// If it's a relationship field, add it to the relationships to resolve
 				$value = '//rel' . count($relationships) . '//'; // Placeholder
+				$encode = false;
 				$relationships[] = $part;
 			} elseif ($element !== null) {
 				// Need to fetch from database
@@ -78,13 +80,13 @@ class UrlGenerator
 				if ($main_row === null or is_numeric($main_row))
 					$main_row = $row;
 
-				return $row[$part['name']] ?? null;
+				$value = $row[$part['name']] ?? null;
 			}
 
 			if ($value === null)
 				return null;
 
-			$parts[] = $this->urlEncode($route, (string)$value);
+			$parts[] = $encode ? $this->urlEncode($route, (string)$value) : (string)$value;
 		}
 
 		return implode('-', $parts);
