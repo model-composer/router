@@ -60,44 +60,48 @@ class UrlMatcher
 			}
 		}
 
-		$joins = [];
-		$filters = [];
+		if (!$id) {
+			$joins = [];
+			$filters = [];
 
-		if (count($relationships) > 0) {
-			// Build joins and filters for relationships
-			foreach ($relationships as $rel) {
-				$relInfo = $this->resolver->parseRelationshipForMatch($rel);
-				if ($relInfo === null)
+			if (count($relationships) > 0) {
+				// Build joins and filters for relationships
+				foreach ($relationships as $rel) {
+					$relInfo = $this->resolver->parseRelationshipForMatch($rel);
+					if ($relInfo === null)
+						return null;
+
+					if ($relInfo['joins'] ?? [])
+						$joins = [...$joins, ...$relInfo['joins']];
+					if ($relInfo['filters'] ?? [])
+						$filters = [...$filters, ...$relInfo['filters']];
+				}
+			}
+
+			foreach ($route->segments as $index => $segment) {
+				if ($segment['type'] === 'static')
+					continue;
+
+				// Dynamic segment
+
+				$urlSegment = $urlSegments[$index];
+
+				$fields = [];
+				foreach ($segment['parts'] as $part) {
+					if ($part['type'] === 'field')
+						$fields[] = $part;
+				}
+
+				if (count($fields) === 0)
 					return null;
 
-				if ($relInfo['joins'] ?? [])
-					$joins = [...$joins, ...$relInfo['joins']];
-				if ($relInfo['filters'] ?? [])
-					$filters = [...$filters, ...$relInfo['filters']];
+				if (count($fields) === 1)
+					$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters, $joins);
+				else
+					$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters, $joins);
+
+				break;
 			}
-		}
-
-		foreach ($route->segments as $index => $segment) {
-			if ($segment['type'] === 'static')
-				continue;
-
-			// Dynamic segment
-
-			$urlSegment = $urlSegments[$index];
-
-			$fields = [];
-			foreach ($segment['parts'] as $part) {
-				if ($part['type'] === 'field')
-					$fields[] = $part;
-			}
-
-			if (count($fields) === 0)
-				return null;
-
-			if (count($fields) === 1)
-				$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters, $joins);
-			else
-				$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters, $joins);
 
 			if (!$id)
 				return null;
