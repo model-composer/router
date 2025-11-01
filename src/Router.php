@@ -100,7 +100,7 @@ class Router
 	{
 		$cache = Cache::getCacheAdapter();
 
-		$result = $cache->get('model.router.matching.' . $url, function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
+		$result = $cache->get('model.router.matching.' . sha1($url), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
 			$item->expiresAfter(3600 * 24);
 
 			$matcher = $this->getMatcher();
