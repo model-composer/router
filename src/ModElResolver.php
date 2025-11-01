@@ -43,13 +43,14 @@ class ModElResolver implements ResolverInterface
 
 	public function fetch(array $entity, ?int $id, array $filters = []): ?array
 	{
-		foreach ($filters['filters'] as $k => $v)
-			$filters['filters'][$k] = ['LIKE', '%' . implode('%', explode('-', $v)) . '%'];
+		$where = $filters['filters'] ?? [];
+		foreach ($where as $k => $v)
+			$where[$k] = ['LIKE', '%' . implode('%', explode('-', $v)) . '%'];
 
 		if ($id)
-			$filters['filters'][$entity['primary']] = $id;
+			$where[$entity['primary']] = $id;
 
-		return Db::getConnection()->select($entity['table'], $filters['filters'] ?? [], ['joins' => $filters['joins'] ?? []]);
+		return Db::getConnection()->select($entity['table'], $where, ['joins' => $filters['joins'] ?? []]);
 	}
 
 	public function parseRelationshipForMatch(array $entity, array $relationship): ?array
