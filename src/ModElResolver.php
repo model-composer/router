@@ -46,7 +46,7 @@ class ModElResolver implements ResolverInterface
 		if ($id)
 			$filters[$entity['primary']] = $id;
 
-		return Db::getConnection()->select($entity['table'], $filters['where'], ['joins' => $filters['joins']]);
+		return Db::getConnection()->select($entity['table'], $filters['where'] ?? [], ['joins' => $filters['joins'] ?? []]);
 	}
 
 	public function parseRelationshipForMatch(array $relationship): ?array
