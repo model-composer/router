@@ -12,7 +12,7 @@ class UrlMatcher
 	 * Try to match a URL against a route
 	 * Returns array with controller and extracted parameters, or null if no match
 	 */
-	public function match(string $url, Route $route): ?array
+	public function  match(string $url, Route $route): ?array
 	{
 		$urlSegments = explode('/', trim($url, '/'));
 
@@ -70,10 +70,7 @@ class UrlMatcher
 			}
 		}
 
-		if (!$id) {
-			if (!$hasDynamicDirectSegment)
-				return null;
-
+		if (!$id and $hasDynamicDirectSegment) {
 			$filters = [];
 
 			if (count($relationships) > 0) {
