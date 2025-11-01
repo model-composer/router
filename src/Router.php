@@ -98,28 +98,34 @@ class Router
 	 */
 	public function match(string $url, bool $setAsActive = false): ?array
 	{
-		$matcher = $this->getMatcher();
+		$cache = Cache::getCacheAdapter();
 
-		foreach ($this->getRoutes() as $route) {
-			$result = $matcher->match($url, $route);
-			if ($result !== null) {
-				$parsedResult = [
-					...$result,
-					'pattern' => $route->pattern,
-					'controller' => $route->controller,
-					'entity' => $route->options['entity'] ?? null,
-					'tags' => $route->options['tags'] ?? [],
-					'route' => $route,
-				];
+		$result = $cache->get('model.router.matching.' . $url, function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
+			$item->expiresAfter(3600 * 24);
 
-				if ($setAsActive)
-					$this->activeRoute = $parsedResult;
+			$matcher = $this->getMatcher();
 
-				return $parsedResult;
+			foreach ($this->getRoutes() as $route) {
+				$result = $matcher->match($url, $route);
+				if ($result !== null) {
+					return [
+						...$result,
+						'pattern' => $route->pattern,
+						'controller' => $route->controller,
+						'entity' => $route->options['entity'] ?? null,
+						'tags' => $route->options['tags'] ?? [],
+						'route' => $route,
+					];
+				}
 			}
-		}
 
-		return null;
+			return null;
+		});
+
+		if ($result and $setAsActive)
+			$this->activeRoute = $result;
+
+		return $result;
 	}
 
 	/**
@@ -132,7 +138,7 @@ class Router
 		$cache = Cache::getCacheAdapter();
 
 		return $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
-			$item->expiresAfter(60 * 5);
+			$item->expiresAfter(3600 * 24);
 
 			$generator = $this->getGenerator();
 
