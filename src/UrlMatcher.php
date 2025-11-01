@@ -61,20 +61,16 @@ class UrlMatcher
 		}
 
 		if (!$id) {
-			$joins = [];
 			$filters = [];
 
 			if (count($relationships) > 0) {
 				// Build joins and filters for relationships
 				foreach ($relationships as $rel) {
-					$relInfo = $this->resolver->parseRelationshipForMatch($rel);
-					if ($relInfo === null)
+					$relFilters = $this->resolver->parseRelationshipForMatch($rel);
+					if ($relFilters === null)
 						return null;
 
-					if ($relInfo['joins'] ?? [])
-						$joins = [...$joins, ...$relInfo['joins']];
-					if ($relInfo['filters'] ?? [])
-						$filters = [...$filters, ...$relInfo['filters']];
+					$filters = $this->resolver->mergeRelationshipFilters($filters, $relFilters);
 				}
 			}
 
@@ -96,9 +92,9 @@ class UrlMatcher
 					return null;
 
 				if (count($fields) === 1)
-					$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters, $joins);
+					$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters);
 				else
-					$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters, $joins);
+					$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters);
 
 				if (!$id)
 					return null;
@@ -124,16 +120,16 @@ class UrlMatcher
 	/**
 	 * Extract a single field from URL segment
 	 */
-	private function extractSingleField(string $urlSegment, array $field, Route $route, array $filters, array $joins): ?int
+	private function extractSingleField(string $urlSegment, array $field, Route $route, array $filters): ?int
 	{
 		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
 		// Build where clause
-		$filters[$field['name']] = ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)];
+		$filters['where'][$field['name']] = ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)];
 
 
-		$row = $this->resolver->fetch($route->options['entity'], null, $filters, $joins);
+		$row = $this->resolver->fetch($route->options['entity'], null, $filters);
 		if ($row === null)
 			return null;
 
@@ -143,7 +139,7 @@ class UrlMatcher
 	/**
 	 * Extract multiple fields from a single URL segment (e.g., john-doe)
 	 */
-	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $filters, array $joins): ?int
+	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $filters): ?int
 	{
 		if ($this->resolver === null or !$route->options['entity'])
 			return null;
@@ -157,13 +153,11 @@ class UrlMatcher
 
 		// Try each combination
 		foreach ($combinations as $combination) {
-			$combination_filters = [...$filters];
-			foreach ($combination as $fieldName => $value) {
-				// Use LIKE for partial matching
-				$combination_filters[$fieldName] = ['LIKE', '%' . $value . '%'];
-			}
+			$combination_filters = $filters;
+			foreach ($combination as $fieldName => $value)
+				$combination_filters['where'][$fieldName] = ['LIKE', '%' . $value . '%']; // Use LIKE for partial matching
 
-			$row = $this->resolver->fetch($route->options['entity'], null, $combination_filters, $joins);
+			$row = $this->resolver->fetch($route->options['entity'], null, $combination_filters);
 			if ($row !== null)
 				return $row[$this->resolver->getPrimary($route->options['entity'])];
 		}

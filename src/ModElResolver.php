@@ -41,17 +41,32 @@ class ModElResolver implements ResolverInterface
 		return $entity['primary'];
 	}
 
-	public function fetch(array $entity, ?int $id, array $filters = [], array $joins = []): ?array
+	public function fetch(array $entity, ?int $id, array $filters = []): ?array
 	{
 		if ($id)
 			$filters[$entity['primary']] = $id;
 
-		return Db::getConnection()->select($entity['table'], $filters, ['joins' => $joins]);
+		return Db::getConnection()->select($entity['table'], $filters['where'], ['joins' => $filters['joins']]);
 	}
 
 	public function parseRelationshipForMatch(array $relationship): ?array
 	{
 		return []; // TODO
+	}
+
+	public function mergeRelationshipFilters(array ...$filters): array
+	{
+		$merged['where'] = [];
+		$merged['joins'] = [];
+
+		foreach ($filters as $filter_set) {
+			if (!empty($filter_set['where']))
+				$merged['where'] = array_merge($merged['where'], $filter_set['where']);
+			if (!empty($filter_set['joins']))
+				$merged['joins'] = array_merge($merged['joins'], $filter_set['joins']);
+		}
+
+		return $merged;
 	}
 
 	public function resolveRelationshipForGeneration(array $entity, array|int $row, array $relationship): string
