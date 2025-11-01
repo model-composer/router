@@ -24,6 +24,7 @@ class UrlMatcher
 		if (!preg_match($route->regex, $url))
 			return null;
 
+		$hasDynamicDirectSegment = false;
 		$relationships = [];
 		$id = null;
 
@@ -41,19 +42,28 @@ class UrlMatcher
 					return null;
 			} else {
 				// Dynamic segment
+				$count_dynamic = 0;
 				foreach ($segment['parts'] as $part) {
 					if ($part['type'] !== 'field')
 						continue;
 
+					$count_dynamic++;
 					if (count($part['relationships'] ?? []) > 0) {
 						// Collect relationships for later use
-						$relationships[] = $part;
-					} elseif ($part['name'] === $this->resolver->getPrimary($route->options['entity'])) { // If there is the id field, try to extract it directly
-						// Look for id
-						$id_check = $this->extractId($urlSegment, $segment, $part['name']);
-						if ($id_check) {
-							$id = $id_check;
-							break 2; // ID found, skip further processing
+						$value = preg_replace('/^' . $segment['regex'] . '$/', '$' . $count_dynamic, $urlSegment);
+						$relationships[] = [
+							...$part,
+							'value' => $value,
+						];
+					} else {
+						$hasDynamicDirectSegment = true;
+						if ($part['name'] === $this->resolver->getPrimary($route->options['entity'])) { // If there is the id field, try to extract it directly
+							// Look for id
+							$id_check = $this->extractId($urlSegment, $segment, $part['name']);
+							if ($id_check) {
+								$id = $id_check;
+								break 2; // ID found, skip further processing
+							}
 						}
 					}
 				}
@@ -61,16 +71,19 @@ class UrlMatcher
 		}
 
 		if (!$id) {
+			if (!$hasDynamicDirectSegment)
+				return null;
+
 			$filters = [];
 
 			if (count($relationships) > 0) {
 				// Build joins and filters for relationships
 				foreach ($relationships as $rel) {
-					$relFilters = $this->resolver->parseRelationshipForMatch($rel);
+					$relFilters = $this->resolver->parseRelationshipForMatch($route->options['entity'], $rel);
 					if ($relFilters === null)
 						return null;
 
-					$filters = $this->resolver->mergeRelationshipFilters($filters, $relFilters);
+					$filters = $this->resolver->mergeQueryFilters($filters, $relFilters);
 				}
 			}
 
@@ -82,14 +95,24 @@ class UrlMatcher
 
 				$urlSegment = $urlSegments[$index];
 
+				$hasRelationships = false;
 				$fields = [];
 				foreach ($segment['parts'] as $part) {
+					if (count($part['relationships'] ?? []) > 0) {
+						$hasRelationships = true;
+						continue;
+					}
+
 					if ($part['type'] === 'field')
 						$fields[] = $part;
 				}
 
-				if (count($fields) === 0)
-					return null;
+				if (count($fields) === 0) {
+					if ($hasRelationships) // Look for the next segment, we are interested in the "direct" ones here
+						continue;
+					else
+						return null; // If no fields are found AND it is not a relationship segment, something is wrong
+				}
 
 				if (count($fields) === 1)
 					$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters);
@@ -125,8 +148,14 @@ class UrlMatcher
 		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
-		// Build where clause
-		$filters['where'][$field['name']] = ['LIKE', $this->parseSingleSegmentForQuery($urlSegment)];
+		$filters = $this->resolver->mergeQueryFilters(
+			$filters,
+			[
+				'filters' => [
+					$field['name'] => $urlSegment,
+				],
+			],
+		);
 
 
 		$row = $this->resolver->fetch($route->options['entity'], null, $filters);
@@ -155,7 +184,7 @@ class UrlMatcher
 		foreach ($combinations as $combination) {
 			$combination_filters = $filters;
 			foreach ($combination as $fieldName => $value)
-				$combination_filters['where'][$fieldName] = ['LIKE', '%' . $value . '%']; // Use LIKE for partial matching
+				$combination_filters['filters'][$fieldName] = $value;
 
 			$row = $this->resolver->fetch($route->options['entity'], null, $combination_filters);
 			if ($row !== null)
@@ -223,10 +252,5 @@ class UrlMatcher
 		}
 
 		return $patterns;
-	}
-
-	private function parseSingleSegmentForQuery(string $segment): string
-	{
-		return implode('%', explode('-', $segment));
 	}
 }

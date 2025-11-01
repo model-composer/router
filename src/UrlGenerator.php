@@ -133,4 +133,3 @@ class UrlGenerator
 		return trim($value, '-');
 	}
 }
-

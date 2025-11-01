@@ -78,12 +78,14 @@ class Route
 					}
 				}
 
-				$regex[] = implode('-', $regexParts);
+				$segment['regex'] = implode('-', $regexParts);
+				$regex[] = $segment['regex'];
 			} else {
 				$segment = [
 					'type' => 'static',
 					'value' => $part,
 					'parts' => [],
+					'regex' => preg_quote($part, '/'),
 				];
 
 				$regex[] = preg_quote($part, '/');

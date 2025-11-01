@@ -43,37 +43,59 @@ class ModElResolver implements ResolverInterface
 
 	public function fetch(array $entity, ?int $id, array $filters = []): ?array
 	{
-		if ($id)
-			$filters[$entity['primary']] = $id;
+		foreach ($filters['filters'] as $k => $v)
+			$filters['filters'][$k] = ['LIKE', '%' . implode('%', explode('-', $v)) . '%'];
 
-		return Db::getConnection()->select($entity['table'], $filters['where'] ?? [], ['joins' => $filters['joins'] ?? []]);
+		if ($id)
+			$filters['filters'][$entity['primary']] = $id;
+
+		return Db::getConnection()->select($entity['table'], $filters['filters'] ?? [], ['joins' => $filters['joins'] ?? []]);
 	}
 
-	public function parseRelationshipForMatch(array $relationship): ?array
+	public function parseRelationshipForMatch(array $entity, array $relationship): ?array
 	{
+		if (!$entity['element'])
+			throw new \Exception('Router resolver can only resolve relationships for elements');
+
 		$joins = [];
-		$where = [];
 
-		foreach ($relationship['relationships'] as $rel) {
+		$elements_tree = $this->model->getModule('ORM')->getElementsTree();
+		$elements_tree = $elements_tree['elements'];
 
+		$current_element = $elements_tree[$entity['element']] ?? null;
+		foreach ($relationship['relationships'] as $idx_rel => $rel) {
+			if (!$current_element)
+				throw new \Exception('Element not found in elements tree while resolving relationship in router');
+
+			$tree_relation = array_find($current_element['children'], fn($r) => $r['relation'] === $rel);
+			if (!$tree_relation or $tree_relation['type'] !== 'single' or $tree_relation['assoc']) // Relationship must be exist and must be one-to-one
+				throw new \Exception('Relationship ' . $rel . ' not found for element ' . $current_element['name']);
+
+			$current_element = $tree_relation['element'] ? ($elements_tree[$tree_relation['element']] ?? null) : null;
+			$joins[] = [
+				'table' => $tree_relation['table'],
+				'alias' => 'rel_' . $rel,
+				'on' => [$tree_relation['field'] => $tree_relation['primary']],
+				'fields' => $idx_rel === count($relationship['relationships']) - 1 ? [$relationship['name'] => 'rel_' . $relationship['name']] : [],
+			];
 		}
-
-		// TODO
 
 		return [
 			'joins' => $joins,
-			'where' => $where,
+			'filters' => [
+				'rel_' . $relationship['name'] => $relationship['value'],
+			],
 		];
 	}
 
-	public function mergeRelationshipFilters(array ...$filters): array
+	public function mergeQueryFilters(array ...$filters): array
 	{
-		$merged['where'] = [];
+		$merged['filters'] = [];
 		$merged['joins'] = [];
 
 		foreach ($filters as $filter_set) {
-			if (!empty($filter_set['where']))
-				$merged['where'] = array_merge($merged['where'], $filter_set['where']);
+			if (!empty($filter_set['filters']))
+				$merged['filters'] = array_merge($merged['filters'], $filter_set['filters']);
 			if (!empty($filter_set['joins']))
 				$merged['joins'] = array_merge($merged['joins'], $filter_set['joins']);
 		}
@@ -86,13 +108,13 @@ class ModElResolver implements ResolverInterface
 		if (!$entity['element'])
 			throw new \Exception('Element resolver can only resolve relationships for elements');
 
-		$curr_element = $this->model->getModule('ORM')->one($entity['element'], is_numeric($row) ? $row : $row[$entity['primary']]);
+		$current_element = $this->model->getModule('ORM')->one($entity['element'], is_numeric($row) ? $row : $row[$entity['primary']]);
 		foreach ($relationship['relationships'] as $rel) {
-			$curr_element = $curr_element->{$rel};
-			if (!$curr_element)
+			$current_element = $current_element->{$rel};
+			if (!$current_element)
 				throw new \Exception('Could not resolve relationship ' . $rel);
 		}
 
-		return $curr_element[$relationship['field']];
+		return $current_element[$relationship['field']];
 	}
 }

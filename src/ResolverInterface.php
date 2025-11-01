@@ -8,9 +8,9 @@ interface ResolverInterface
 
 	public function fetch(array $entity, int $id, array $filters = []): ?array;
 
-	public function parseRelationshipForMatch(array $relationship): ?array;
+	public function parseRelationshipForMatch(array $entity, array $relationship): ?array;
 
-	public function mergeRelationshipFilters(array ...$filters): array;
+	public function mergeQueryFilters(array ...$filters): array;
 
 	public function resolveRelationshipForGeneration(array $entity, array $row, array $relationship): ?string;
 }
