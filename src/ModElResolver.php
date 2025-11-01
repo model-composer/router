@@ -51,7 +51,19 @@ class ModElResolver implements ResolverInterface
 
 	public function parseRelationshipForMatch(array $relationship): ?array
 	{
-		return []; // TODO
+		$joins = [];
+		$where = [];
+
+		foreach ($relationship['relationships'] as $rel) {
+
+		}
+
+		// TODO
+
+		return [
+			'joins' => $joins,
+			'where' => $where,
+		];
 	}
 
 	public function mergeRelationshipFilters(array ...$filters): array
