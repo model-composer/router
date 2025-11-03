@@ -12,7 +12,7 @@ class UrlMatcher
 	 * Try to match a URL against a route
 	 * Returns array with controller and extracted parameters, or null if no match
 	 */
-	public function  match(string $url, Route $route): ?array
+	public function match(string $url, Route $route): ?array
 	{
 		$urlSegments = explode('/', trim($url, '/'));
 

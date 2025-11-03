@@ -8,4 +8,9 @@ abstract class AbstractRouterProvider extends AbstractProvider
 	{
 		return [];
 	}
+
+	public static function parseUrl(string $url): string
+	{
+		return $url;
+	}
 }
