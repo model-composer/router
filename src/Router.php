@@ -102,7 +102,7 @@ class Router
 
 		$providers = Providers::find('RouterProvider');
 		foreach ($providers as $provider)
-			$url = $provider['provider']::parseUrl($url);
+			$url = $provider['provider']::preMatchUrl($url);
 
 		$result = $cache->get('model.router.matching.' . sha1($url), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
 			$item->expiresAfter(3600 * 24);
@@ -135,28 +135,36 @@ class Router
 	/**
 	 * Generate a URL for a controller with parameters
 	 */
-	public function generate(string $controller, int|array|null $element = null, array $tags = []): ?string
+	public function generate(string $controller, int|array|null $element = null, array $tags = [], array $options = []): ?string
 	{
 		\Model\Events\Events::dispatch(new UrlGenerate($controller, $element, $tags));
 
 		$cache = Cache::getCacheAdapter();
 
-		return $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
+		$url = $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
 			$item->expiresAfter(3600 * 24);
 
 			$generator = $this->getGenerator();
 
 			// Find matching routes for this controller
 			$matchingRoutes = $this->getRoutesForController($controller, $tags);
-
 			foreach ($matchingRoutes as $route) {
-				$url = $generator->generate($route, $element, $this->options['base_path']);
+				$url = $generator->generate($route, $element);
 				if ($url !== null)
 					return $url;
 			}
 
 			return null;
 		});
+
+		if ($url === null)
+			return null;
+
+		$providers = Providers::find('RouterProvider');
+		foreach ($providers as $provider)
+			$url = $provider['provider']::postGenerateUrl($url, $options);
+
+		return $this->options['base_path'] . $url;
 	}
 
 	/**

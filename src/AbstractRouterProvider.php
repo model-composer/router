@@ -9,7 +9,12 @@ abstract class AbstractRouterProvider extends AbstractProvider
 		return [];
 	}
 
-	public static function parseUrl(string $url): string
+	public static function preMatchUrl(string $url): string
+	{
+		return $url;
+	}
+
+	public static function postGenerateUrl(string $url, array $options): string
 	{
 		return $url;
 	}

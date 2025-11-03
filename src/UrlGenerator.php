@@ -11,7 +11,7 @@ class UrlGenerator
 	/**
 	 * Generate a URL for a given route with parameters
 	 */
-	public function generate(Route $route, int|array|null $element = null, string $base_path = '/'): ?string
+	public function generate(Route $route, int|array|null $element = null): ?string
 	{
 		$urlSegments = [];
 		$relationships = [];
@@ -29,7 +29,7 @@ class UrlGenerator
 			}
 		}
 
-		$url = $base_path . implode('/', $urlSegments);
+		$url = implode('/', $urlSegments);
 
 		if ($relationships) {
 			if (!$main_row)
