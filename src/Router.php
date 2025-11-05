@@ -160,7 +160,7 @@ class Router
 		} else {
 			$cache = Cache::getCacheAdapter();
 
-			$url = $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
+			$url = $cache->get('model.router.route.' . $controller . '.' . sha1(json_encode($element)) . '.' . sha1(json_encode($tags)), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
 				$item->expiresAfter(3600 * 24);
 				return $this->doGenerate($controller, $element, $tags);
 			});
