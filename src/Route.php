@@ -94,7 +94,7 @@ class Route
 			$this->segments[] = $segment;
 		}
 
-		$this->regex = $regex ? '/^\\/' . implode('\/', $regex) . '(\\/.*)?$/' : '/^\\/.*$/';
+		$this->regex = $regex ? '/^\\/?' . implode('\/', $regex) . '(\\/.*)?$/' : '/^\\/.*$/';
 		if ($this->options['case_sensitive'])
 			$this->regex .= 'i';
 	}
