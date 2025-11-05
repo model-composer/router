@@ -26,53 +26,61 @@ class Router
 	public function getRoutes(): array
 	{
 		if (!$this->routesLoaded) {
-			$cache = Cache::getCacheAdapter();
+			if (defined('DEBUG_MODE') and DEBUG_MODE) {
+				$this->routes = $this->doGetRoutes();
+			} else {
+				$cache = Cache::getCacheAdapter();
 
-			$this->routes = $cache->get('model.router.routes', function (\Symfony\Contracts\Cache\ItemInterface $item) {
-				$item->expiresAfter(3600 * 24);
-
-				$routes = [];
-
-				$providers = Providers::find('RouterProvider');
-				foreach ($providers as $provider) {
-					$providerRoutes = $provider['provider']::getRoutes();
-					foreach ($providerRoutes as $route) {
-						$options = $route['options'] ?? [];
-						$options['tags']['provider'] = $provider['package'];
-						$this->addRoute($routes, $route['pattern'], $route['controller'], $options);
-					}
-				}
-
-				$config = Config::get('router');
-				foreach (($config['routes'] ?? []) as $route)
-					$this->addRoute($routes, $route['pattern'], $route['controller'], $route['options'] ?? []);
-
-				// Sort routes: more specific first
-				usort($routes, function (Route $a, Route $b) {
-					if (count($a->segments) !== count($b->segments))
-						return count($b->segments) <=> count($a->segments); // More segments first
-
-					foreach ($a->segments as $idx => $segmentA) {
-						$segmentB = $b->segments[$idx] ?? null;
-						if ($segmentB === null)
-							break; // b has fewer segments
-
-						if ($segmentA['type'] === 'static' and $segmentB['type'] !== 'static')
-							return -1;
-						if ($segmentA['type'] !== 'static' and $segmentB['type'] === 'static')
-							return 1;
-					}
-
-					return 0;
+				$this->routes = $cache->get('model.router.routes', function (\Symfony\Contracts\Cache\ItemInterface $item) {
+					$item->expiresAfter(3600 * 24);
+					return $this->doGetRoutes();
 				});
-
-				return $routes;
-			});
+			}
 
 			$this->routesLoaded = true;
 		}
 
 		return $this->routes;
+	}
+
+	private function doGetRoutes(): array
+	{
+		$routes = [];
+
+		$providers = Providers::find('RouterProvider');
+		foreach ($providers as $provider) {
+			$providerRoutes = $provider['provider']::getRoutes();
+			foreach ($providerRoutes as $route) {
+				$options = $route['options'] ?? [];
+				$options['tags']['provider'] = $provider['package'];
+				$this->addRoute($routes, $route['pattern'], $route['controller'], $options);
+			}
+		}
+
+		$config = Config::get('router');
+		foreach (($config['routes'] ?? []) as $route)
+			$this->addRoute($routes, $route['pattern'], $route['controller'], $route['options'] ?? []);
+
+		// Sort routes: more specific first
+		usort($routes, function (Route $a, Route $b) {
+			if (count($a->segments) !== count($b->segments))
+				return count($b->segments) <=> count($a->segments); // More segments first
+
+			foreach ($a->segments as $idx => $segmentA) {
+				$segmentB = $b->segments[$idx] ?? null;
+				if ($segmentB === null)
+					break; // b has fewer segments
+
+				if ($segmentA['type'] === 'static' and $segmentB['type'] !== 'static')
+					return -1;
+				if ($segmentA['type'] !== 'static' and $segmentB['type'] === 'static')
+					return 1;
+			}
+
+			return 0;
+		});
+
+		return $routes;
 	}
 
 	/**
@@ -104,32 +112,40 @@ class Router
 		foreach ($providers as $provider)
 			$url = $provider['provider']::preMatchUrl($url);
 
-		$result = $cache->get('model.router.matching.' . sha1($url), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
-			$item->expiresAfter(3600 * 24);
-
-			$matcher = $this->getMatcher();
-
-			foreach ($this->getRoutes() as $route) {
-				$result = $matcher->match($url, $route);
-				if ($result !== null) {
-					return [
-						...$result,
-						'pattern' => $route->pattern,
-						'controller' => $route->controller,
-						'entity' => $route->options['entity'] ?? null,
-						'tags' => $route->options['tags'] ?? [],
-						'route' => $route,
-					];
-				}
-			}
-
-			return null;
-		});
+		if (defined('DEBUG_MODE') and DEBUG_MODE) {
+			$result = $this->doMatch($url);
+		} else {
+			$result = $cache->get('model.router.matching.' . sha1($url), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
+				$item->expiresAfter(3600 * 24);
+				return $this->doMatch($url);
+			});
+		}
 
 		if ($result and $setAsActive)
 			$this->activeRoute = $result;
 
 		return $result;
+	}
+
+	private function doMatch(string $url): ?array
+	{
+		$matcher = $this->getMatcher();
+
+		foreach ($this->getRoutes() as $route) {
+			$result = $matcher->match($url, $route);
+			if ($result !== null) {
+				return [
+					...$result,
+					'pattern' => $route->pattern,
+					'controller' => $route->controller,
+					'entity' => $route->options['entity'] ?? null,
+					'tags' => $route->options['tags'] ?? [],
+					'route' => $route,
+				];
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -139,23 +155,16 @@ class Router
 	{
 		\Model\Events\Events::dispatch(new UrlGenerate($controller, $element, $tags));
 
-		$cache = Cache::getCacheAdapter();
+		if (defined('DEBUG_MODE') and DEBUG_MODE) {
+			$url = $this->doGenerate($controller, $element, $tags);
+		} else {
+			$cache = Cache::getCacheAdapter();
 
-		$url = $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
-			$item->expiresAfter(3600 * 24);
-
-			$generator = $this->getGenerator();
-
-			// Find matching routes for this controller
-			$matchingRoutes = $this->getRoutesForController($controller, $tags);
-			foreach ($matchingRoutes as $route) {
-				$url = $generator->generate($route, $element);
-				if ($url !== null)
-					return $url;
-			}
-
-			return null;
-		});
+			$url = $cache->get('model.router.route.' . $controller . '.' . json_encode($element) . '.' . json_encode($tags), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($controller, $element, $tags) {
+				$item->expiresAfter(3600 * 24);
+				return $this->doGenerate($controller, $element, $tags);
+			});
+		}
 
 		if ($url === null)
 			return null;
@@ -165,6 +174,21 @@ class Router
 			$url = $provider['provider']::postGenerateUrl($url, $options);
 
 		return $this->options['base_path'] . $url;
+	}
+
+	private function doGenerate(string $controller, int|array|null $element = null, array $tags = []): ?string
+	{
+		$generator = $this->getGenerator();
+
+		// Find matching routes for this controller
+		$matchingRoutes = $this->getRoutesForController($controller, $tags);
+		foreach ($matchingRoutes as $route) {
+			$url = $generator->generate($route, $element);
+			if ($url !== null)
+				return $url;
+		}
+
+		return null;
 	}
 
 	/**
