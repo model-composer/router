@@ -106,8 +106,6 @@ class Router
 	 */
 	public function match(string $url, bool $setAsActive = false): ?array
 	{
-		$cache = Cache::getCacheAdapter();
-
 		$providers = Providers::find('RouterProvider');
 		foreach ($providers as $provider)
 			$url = $provider['provider']::preMatchUrl($url);
@@ -115,6 +113,8 @@ class Router
 		if (defined('DEBUG_MODE') and DEBUG_MODE) {
 			$result = $this->doMatch($url);
 		} else {
+			$cache = Cache::getCacheAdapter();
+
 			$result = $cache->get('model.router.matching.' . sha1($url), function (\Symfony\Contracts\Cache\ItemInterface $item) use ($url) {
 				$item->expiresAfter(3600 * 24);
 				return $this->doMatch($url);
