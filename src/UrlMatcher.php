@@ -116,7 +116,9 @@ class UrlMatcher
 				else
 					$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters);
 
-				if (!$id)
+				if ($id)
+					break;
+				else
 					return null;
 			}
 		}
