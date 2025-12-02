@@ -116,6 +116,6 @@ class ModElResolver implements ResolverInterface
 				throw new \Exception('Could not resolve relationship ' . $rel);
 		}
 
-		return $current_element[$relationship['field']];
+		return $current_element[$relationship['name']];
 	}
 }
