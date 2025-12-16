@@ -57,7 +57,7 @@ class ModElResolver implements ResolverInterface
 					'tinytext',
 					'string',
 				])) {
-				$where[$k] = ['LIKE', '%' . implode('%', explode('-', $v)) . '%'];
+				$where[$k] = ['LIKE', implode('%', explode('-', $v)) . '%'];
 			} elseif (isset($table->columns[$k]) and in_array(strtolower($table->columns[$k]['type']), ['enum'])) {
 				$where[$k] = ['LIKE', implode('%', explode('-', $v))];
 			} else {
