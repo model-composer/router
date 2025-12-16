@@ -43,9 +43,27 @@ class ModElResolver implements ResolverInterface
 
 	public function fetch(array $entity, ?int $id, array $filters = []): ?array
 	{
+		$db = Db::getConnection();
+		$table = $db->getTable($entity['table']);
+
 		$where = $filters['filters'] ?? [];
-		foreach ($where as $k => $v)
-			$where[$k] = ['LIKE', '%' . implode('%', explode('-', $v)) . '%'];
+		foreach ($where as $k => $v) {
+			if (isset($table->columns[$k]) and in_array(strtolower($table->columns[$k]['type']), [
+					'varchar',
+					'char',
+					'text',
+					'mediumtext',
+					'longtext',
+					'tinytext',
+					'string',
+				])) {
+				$where[$k] = ['LIKE', '%' . implode('%', explode('-', $v)) . '%'];
+			} elseif (isset($table->columns[$k]) and in_array(strtolower($table->columns[$k]['type']), ['enum'])) {
+				$where[$k] = ['LIKE', implode('%', explode('-', $v))];
+			} else {
+				$where[$k] = $v;
+			}
+		}
 
 		if ($id)
 			$where[$entity['primary']] = $id;
