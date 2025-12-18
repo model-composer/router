@@ -124,6 +124,8 @@ class Router
 		if ($result and $setAsActive)
 			$this->activeRoute = $result;
 
+		$result['url'] = $url;
+
 		return $result;
 	}
 
