@@ -45,8 +45,6 @@ class Route
 				$regexParts = [];
 
 				// Parse multiple fields separated by dashes (e.g., :name-:surname)
-				// Handles escaped dots as well
-				$part = str_replace(['\\:', '\\.'], ['-\\:', '-\\.'], $part);
 				$fieldParts = explode('-', $part);
 
 				foreach ($fieldParts as $fieldPart) {
@@ -67,8 +65,6 @@ class Route
 						else
 							$regexParts[] = '([^\/]+)';
 					} else {
-						$fieldPart = str_replace(['-\\:', '-\\.'], [':', '.'], $fieldPart);
-
 						$segment['parts'][] = [
 							'type' => 'static',
 							'value' => $fieldPart,
