@@ -71,7 +71,7 @@ class Route
 
 						$regexParts[] = '([^\/]+)'; // Match any non-slash characters
 					} else {
-						$part = str_replace(['\\:', '\\.'], [':', '.'], $part);
+						$fieldPart = str_replace(['-\\:', '-\\.'], [':', '.'], $fieldPart);
 
 						$segment['parts'][] = [
 							'type' => 'static',
