@@ -50,24 +50,20 @@ class Route
 				foreach ($fieldParts as $fieldPart) {
 					if (str_starts_with($fieldPart, ':')) {
 						$fieldPart = substr($fieldPart, 1); // Remove leading ':'
-						// Check for relationship notation (e.g., category.name)
-						if (str_contains($fieldPart, '.')) {
-							$relationships = explode('.', $fieldPart, 2);
-							$field = array_pop($relationships);
-							$segment['parts'][] = [
-								'type' => 'field',
-								'name' => $field,
-								'relationships' => $relationships,
-							];
-						} else {
-							$segment['parts'][] = [
-								'type' => 'field',
-								'name' => $fieldPart,
-								'relationships' => [],
-							];
-						}
+						$parsed = $this->parseFieldPart($fieldPart);
 
-						$regexParts[] = '([^\/]+)'; // Match any non-slash characters
+						$segment['parts'][] = [
+							'type' => 'field',
+							'name' => $parsed['field'],
+							'relationships' => $parsed['relationships'],
+							'suffix' => $parsed['suffix'],
+						];
+
+						// Generate regex including the literal suffix
+						if ($parsed['suffix'] !== '')
+							$regexParts[] = '([^\/]+)' . preg_quote($parsed['suffix'], '/');
+						else
+							$regexParts[] = '([^\/]+)';
 					} else {
 						$segment['parts'][] = [
 							'type' => 'static',
@@ -97,6 +93,50 @@ class Route
 		$this->regex = $regex ? '/^\\/?' . implode('\/', $regex) . '(\\/.*)?$/' : '/^\\/?$/';
 		if ($this->options['case_sensitive'])
 			$this->regex .= 'i';
+	}
+
+	/**
+	 * Parse a field part handling escape sequences for literal dots
+	 * Supports: :field, :rel.field, :field\.ext, :rel.field\.ext
+	 */
+	private function parseFieldPart(string $fieldPart): array
+	{
+		// Find first unescaped dot (relationship separator)
+		$len = strlen($fieldPart);
+		$unescapedDotPos = null;
+
+		for ($i = 0; $i < $len; $i++) {
+			if ($fieldPart[$i] === '.' && ($i === 0 || $fieldPart[$i - 1] !== '\\')) {
+				$unescapedDotPos = $i;
+				break;
+			}
+		}
+
+		// Determine relationships
+		if ($unescapedDotPos !== null) {
+			$relationshipPart = substr($fieldPart, 0, $unescapedDotPos);
+			$remainder = substr($fieldPart, $unescapedDotPos + 1);
+			$relationships = [$relationshipPart];
+		} else {
+			$relationships = [];
+			$remainder = $fieldPart;
+		}
+
+		// Parse literal suffix (escaped dots)
+		$escapedDotPos = strpos($remainder, '\.');
+		if ($escapedDotPos !== false) {
+			$field = substr($remainder, 0, $escapedDotPos);
+			$suffix = str_replace('\.', '.', substr($remainder, $escapedDotPos));
+		} else {
+			$field = $remainder;
+			$suffix = '';
+		}
+
+		return [
+			'relationships' => $relationships,
+			'field' => $field,
+			'suffix' => $suffix,
+		];
 	}
 
 	/**

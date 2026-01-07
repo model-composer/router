@@ -147,6 +147,12 @@ class UrlMatcher
 		if ($this->resolver === null or !$route->options['entity'])
 			return null;
 
+		// Strip suffix if present (e.g., ".csv" from "myfile.csv")
+		if (!empty($field['suffix'])) {
+			$suffix = preg_quote($field['suffix'], '/');
+			$urlSegment = preg_replace('/' . $suffix . '$/', '', $urlSegment);
+		}
+
 		$filters = $this->resolver->mergeQueryFilters(
 			$filters,
 			[
@@ -171,6 +177,13 @@ class UrlMatcher
 	{
 		if ($this->resolver === null or !$route->options['entity'])
 			return null;
+
+		// Strip suffix from last field if present (e.g., ".csv" from "john-doe.csv")
+		$lastField = end($fields);
+		if (!empty($lastField['suffix'])) {
+			$suffix = preg_quote($lastField['suffix'], '/');
+			$urlSegment = preg_replace('/' . $suffix . '$/', '', $urlSegment);
+		}
 
 		$words = explode('-', $urlSegment);
 		if (count($words) < count($fields))

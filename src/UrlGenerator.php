@@ -86,7 +86,8 @@ class UrlGenerator
 			if ($value === null)
 				return null;
 
-			$parts[] = $encode ? $this->urlEncode($route, (string)$value) : (string)$value;
+			$encoded = $encode ? $this->urlEncode($route, (string)$value) : (string)$value;
+			$parts[] = $encoded . ($part['suffix'] ?? '');
 		}
 
 		return implode('-', $parts);
