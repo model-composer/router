@@ -94,7 +94,9 @@ class UrlMatcher
 
 				$hasRelationships = false;
 				$fields = [];
-				foreach ($segment['parts'] as $part) {
+
+				$cleanedUrlSegment = explode('-', $urlSegment);
+				foreach ($segment['parts'] as $part_idx => $part) {
 					if (count($part['relationships'] ?? []) > 0) {
 						$hasRelationships = true;
 						continue;
@@ -102,7 +104,11 @@ class UrlMatcher
 
 					if ($part['type'] === 'field')
 						$fields[] = $part;
+					elseif (count($fields) === 0)
+						unset($cleanedUrlSegment[$part_idx]); // Remove initial static parts from consideration
 				}
+
+				$urlSegment = implode('-', $cleanedUrlSegment);
 
 				if (count($fields) === 0) {
 					if ($hasRelationships) // Look for the next segment, we are interested in the "direct" ones here
