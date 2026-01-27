@@ -121,10 +121,12 @@ class Router
 			});
 		}
 
-		if ($result and $setAsActive)
-			$this->activeRoute = $result;
+		if ($result) {
+			if ($setAsActive)
+				$this->activeRoute = $result;
 
-		$result['url'] = $url;
+			$result['url'] = $url;
+		}
 
 		return $result;
 	}
