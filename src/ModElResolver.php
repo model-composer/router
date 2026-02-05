@@ -47,6 +47,8 @@ class ModElResolver implements ResolverInterface
 		$table = $db->getTable($entity['table']);
 
 		$where = $filters['filters'] ?? [];
+		$stringFields = [];
+
 		foreach ($where as $k => $v) {
 			if (isset($table->columns[$k]) and in_array(strtolower($table->columns[$k]['type']), [
 					'varchar',
@@ -58,6 +60,7 @@ class ModElResolver implements ResolverInterface
 					'string',
 				])) {
 				$where[$k] = ['LIKE', implode('%', explode('-', $v)) . '%'];
+				$stringFields[] = $k;
 			} elseif (isset($table->columns[$k]) and in_array(strtolower($table->columns[$k]['type']), ['enum'])) {
 				$where[$k] = ['LIKE', implode('%', explode('-', $v))];
 			} else {
@@ -68,7 +71,13 @@ class ModElResolver implements ResolverInterface
 		if ($id)
 			$where[$entity['primary']] = $id;
 
-		return Db::getConnection()->select($entity['table'], $where, ['joins' => $filters['joins'] ?? []]);
+		$options = ['joins' => $filters['joins'] ?? []];
+
+		// Order by length of string fields to get the most specific match
+		if (count($stringFields) > 0)
+			$options['order_by'] = 'LENGTH(' . $stringFields[0] . ') ASC';
+
+		return Db::getConnection()->select($entity['table'], $where, $options);
 	}
 
 	public function parseRelationshipForMatch(array $entity, array $relationship): ?array
