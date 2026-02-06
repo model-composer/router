@@ -75,7 +75,16 @@ class ModElResolver implements ResolverInterface
 
 		// Order by length of string fields to get the most specific match
 		if (count($stringFields) > 0) {
-			$parsedField = $db->parseColumn($stringFields[0], $entity['table']);
+			$columnName = $stringFields[0];
+			$columnTable = $entity['table'];
+
+			if (class_exists('\\Model\\Multilang\\Ml')) {
+				$mlTables = \Model\Multilang\Ml::getTablesConfig($db);
+				if (isset($mlTables[$columnName], $mlTables[$columnName]['fields']) and in_array($columnName, $mlTables[$columnName]['fields']))
+					$columnTable .= $mlTables[$columnName]['table_suffix'] ?? '';
+			}
+
+			$parsedField = $db->parseColumn($columnName, $columnTable);
 			$options['order_by'] = 'LENGTH(`' . $parsedField . '`) ASC';
 		}
 
