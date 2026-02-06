@@ -75,7 +75,7 @@ class ModElResolver implements ResolverInterface
 
 		// Order by length of string fields to get the most specific match
 		if (count($stringFields) > 0)
-			$options['order_by'] = 'LENGTH(' . $stringFields[0] . ')';
+			$options['order_by'] = ['LENGTH(' . $stringFields[0] . ')'];
 
 		return $db->select($entity['table'], $where, $options);
 	}
