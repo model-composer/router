@@ -74,19 +74,8 @@ class ModElResolver implements ResolverInterface
 		$options = ['joins' => $filters['joins'] ?? []];
 
 		// Order by length of string fields to get the most specific match
-		if (count($stringFields) > 0) {
-			$columnName = $stringFields[0];
-			$columnTable = $entity['table'];
-
-			if (class_exists('\\Model\\Multilang\\Ml')) {
-				$mlTables = \Model\Multilang\Ml::getTablesConfig($db);
-				if (isset($mlTables[$columnName], $mlTables[$columnName]['fields']) and in_array($columnName, $mlTables[$columnName]['fields']))
-					$columnTable .= $mlTables[$columnName]['table_suffix'] ?? '';
-			}
-
-			$parsedField = $db->parseColumn($columnName, $columnTable);
-			$options['order_by'] = 'LENGTH(' . $parsedField . ') ASC';
-		}
+		if (count($stringFields) > 0)
+			$options['order_by'] = 'LENGTH(' . $stringFields[0] . ')';
 
 		return $db->select($entity['table'], $where, $options);
 	}
