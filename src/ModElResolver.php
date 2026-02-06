@@ -85,7 +85,7 @@ class ModElResolver implements ResolverInterface
 			}
 
 			$parsedField = $db->parseColumn($columnName, $columnTable);
-			$options['order_by'] = 'LENGTH(`' . $parsedField . '`) ASC';
+			$options['order_by'] = 'LENGTH(' . $parsedField . ') ASC';
 		}
 
 		return $db->select($entity['table'], $where, $options);
