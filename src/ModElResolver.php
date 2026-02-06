@@ -74,10 +74,12 @@ class ModElResolver implements ResolverInterface
 		$options = ['joins' => $filters['joins'] ?? []];
 
 		// Order by length of string fields to get the most specific match
-		if (count($stringFields) > 0)
-			$options['order_by'] = 'LENGTH(`' . $entity['table'] . '`.`' . $stringFields[0] . '`) ASC';
+		if (count($stringFields) > 0) {
+			$parsedField = $db->parseColumn($stringFields[0], $entity['table']);
+			$options['order_by'] = 'LENGTH(`' . $parsedField . '`) ASC';
+		}
 
-		return Db::getConnection()->select($entity['table'], $where, $options);
+		return $db->select($entity['table'], $where, $options);
 	}
 
 	public function parseRelationshipForMatch(array $entity, array $relationship): ?array
