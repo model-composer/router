@@ -17,6 +17,7 @@ class Route
 			'relationships' => [],
 			'case_sensitive' => true,
 			'lowercase' => true,
+			'strict' => false,
 			'tags' => [],
 		], $options);
 
@@ -90,7 +91,8 @@ class Route
 			$this->segments[] = $segment;
 		}
 
-		$this->regex = $regex ? '/^\\/?' . implode('\/', $regex) . '(\\/.*)?$/' : '/^\\/?$/';
+		$trailing = $this->options['strict'] ? '' : '(\\/.*)?';
+		$this->regex = $regex ? '/^\\/?' . implode('\/', $regex) . $trailing . '$/' : '/^\\/?$/';
 		if ($this->options['case_sensitive'])
 			$this->regex .= 'i';
 	}

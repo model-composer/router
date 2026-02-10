@@ -16,8 +16,10 @@ class UrlMatcher
 	{
 		$urlSegments = explode('/', trim($url, '/'));
 
-		// Quick check: segment count must be greater or equal
+		// Quick check: segment count
 		if (count($urlSegments) < count($route->segments))
+			return null;
+		if ($route->options['strict'] and count($urlSegments) > count($route->segments))
 			return null;
 
 		// Quick regex check
