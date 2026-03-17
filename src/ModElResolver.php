@@ -96,7 +96,7 @@ class ModElResolver implements ResolverInterface
 		$current_element = $elements_tree[$entity['element']] ?? null;
 		foreach ($relationship['relationships'] as $idx_rel => $rel) {
 			if (!$current_element)
-				throw new \Exception('Element not found in elements tree while resolving relationship in router');
+				return null;
 
 			$tree_relation = array_find($current_element['children'], fn($r) => $r['relation'] === $rel);
 			if (!$tree_relation or $tree_relation['type'] !== 'single' or $tree_relation['assoc']) // Relationship must be exist and must be one-to-one
