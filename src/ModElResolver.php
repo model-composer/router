@@ -134,19 +134,19 @@ class ModElResolver implements ResolverInterface
 		return $merged;
 	}
 
-	public function resolveRelationshipForGeneration(array $entity, array|int $row, array $relationship): string
+	public function resolveRelationshipForGeneration(array $entity, array|int $row, array $relationship): ?string
 	{
 		if (!$entity['element'])
 			throw new \Exception('Element resolver can only resolve relationships for elements');
 
 		if (!$this->model->moduleExists('ORM')) // In case it is not initialized
-			return '';
+			return null;
 
 		$current_element = $this->model->getModule('ORM')->one($entity['element'], is_numeric($row) ? $row : $row[$entity['primary']]);
 		foreach ($relationship['relationships'] as $rel) {
 			$current_element = $current_element->{$rel};
 			if (!$current_element)
-				throw new \Exception('Could not resolve relationship ' . $rel);
+				return null;
 		}
 
 		return $current_element[$relationship['name']];

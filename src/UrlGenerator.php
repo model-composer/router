@@ -38,6 +38,9 @@ class UrlGenerator
 			// Resolve relationships
 			foreach ($relationships as $idx => $relationship) {
 				$resolved = $this->resolver->resolveRelationshipForGeneration($route->options['entity'], $main_row, $relationship);
+				if ($resolved === null)
+					return null;
+
 				$url = str_replace('//rel' . $idx . '//', $this->urlEncode($route, $resolved), $url);
 			}
 		}
