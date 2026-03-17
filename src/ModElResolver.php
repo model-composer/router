@@ -85,6 +85,9 @@ class ModElResolver implements ResolverInterface
 		if (!$entity['element'])
 			throw new \Exception('Router resolver can only resolve relationships for elements');
 
+		if (!$this->model->moduleExists('ORM')) // In case it is not initialized
+			return null;
+
 		$joins = [];
 
 		$elements_tree = $this->model->getModule('ORM')->getElementsTree();
@@ -135,6 +138,9 @@ class ModElResolver implements ResolverInterface
 	{
 		if (!$entity['element'])
 			throw new \Exception('Element resolver can only resolve relationships for elements');
+
+		if (!$this->model->moduleExists('ORM')) // In case it is not initialized
+			return '';
 
 		$current_element = $this->model->getModule('ORM')->one($entity['element'], is_numeric($row) ? $row : $row[$entity['primary']]);
 		foreach ($relationship['relationships'] as $rel) {
