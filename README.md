@@ -156,6 +156,24 @@ URL: `/products/electronics/123-laptop` → Looks up:
 1. Category with `name = 'electronics'`
 2. Product with `id = 123` AND `name = 'laptop'`
 
+### Multiple Dynamic Segments
+
+Multiple direct (non-relationship) dynamic segments in the same pattern are combined into a single query: every segment's field value is applied as a filter on the target entity at the same time.
+
+```php
+[
+    'pattern' => '/:type/products/:name',
+    'controller' => 'ProductController',
+    'options' => [
+        'entity' => [
+            'table' => 'products',
+        ],
+    ],
+]
+```
+
+URL: `/electronics/products/laptop` → Looks up a product with `type = 'electronics'` AND `name = 'laptop'` in one query. If any segment contains the primary key (e.g. `:id`) and it is extractable from the URL, that direct fetch still wins and other segments are skipped.
+
 ## Route Options
 
 ### Available Options

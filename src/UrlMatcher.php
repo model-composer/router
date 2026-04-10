@@ -2,8 +2,6 @@
 
 class UrlMatcher
 {
-	private string $acceptableCharacters = 'a-zа-я0-9_\p{Han}-';
-
 	public function __construct(private ?ResolverInterface $resolver = null)
 	{
 	}
@@ -86,23 +84,21 @@ class UrlMatcher
 				}
 			}
 
+			// Collect per-segment candidate filter combinations; each segment contributes
+			// one or more alternatives that will be cross-producted below.
+			$segmentCandidates = [];
+
 			foreach ($route->segments as $index => $segment) {
 				if ($segment['type'] === 'static')
 					continue;
 
-				// Dynamic segment
-
 				$urlSegment = $urlSegments[$index];
 
-				$hasRelationships = false;
 				$fields = [];
-
 				$cleanedUrlSegment = explode('-', $urlSegment);
 				foreach ($segment['parts'] as $part_idx => $part) {
-					if (count($part['relationships'] ?? []) > 0) {
-						$hasRelationships = true;
+					if (count($part['relationships'] ?? []) > 0)
 						continue;
-					}
 
 					if ($part['type'] === 'field')
 						$fields[] = $part;
@@ -112,23 +108,46 @@ class UrlMatcher
 
 				$urlSegment = implode('-', $cleanedUrlSegment);
 
-				if (count($fields) === 0) {
-					if ($hasRelationships) // Look for the next segment, we are interested in the "direct" ones here
-						continue;
-					else
-						return null; // If no fields are found AND it is not a relationship segment, something is wrong
+				if (count($fields) === 0)
+					continue; // Fully relationship-driven segment — already folded into $filters
+
+				// Strip suffix from last field if present (e.g., ".csv" from "john-doe.csv")
+				$lastField = end($fields);
+				if (!empty($lastField['suffix'])) {
+					$suffix = preg_quote($lastField['suffix'], '/');
+					$urlSegment = preg_replace('/' . $suffix . '$/', '', $urlSegment);
 				}
 
-				if (count($fields) === 1)
-					$id = $this->extractSingleField($urlSegment, $fields[0], $route, $filters);
-				else
-					$id = $this->extractMultipleFields($urlSegment, $fields, $route, $filters);
-
-				if ($id)
-					break;
-				else
+				$words = explode('-', $urlSegment);
+				if (count($words) < count($fields))
 					return null;
+
+				$combinations = $this->generateFieldCombinations($words, $fields);
+				if (count($combinations) === 0)
+					return null;
+
+				$segmentCandidates[] = $combinations;
 			}
+
+			if ($this->resolver === null or !$route->options['entity'])
+				return null;
+
+			// Cross-product across segments; first combined filter set that fetches a row wins.
+			foreach ($this->crossProductCandidates($segmentCandidates) as $combined) {
+				$combinationFilters = $this->resolver->mergeQueryFilters(
+					$filters,
+					['filters' => $combined],
+				);
+
+				$row = $this->resolver->fetch($route->options['entity'], null, $combinationFilters);
+				if ($row !== null) {
+					$id = $row[$this->resolver->getPrimary($route->options['entity'])];
+					break;
+				}
+			}
+
+			if (!$id)
+				return null;
 		}
 
 		return [
@@ -148,70 +167,27 @@ class UrlMatcher
 	}
 
 	/**
-	 * Extract a single field from URL segment
+	 * Cross-product of per-segment candidate lists. Each input list holds
+	 * associative arrays of [field => value]; the generator yields merged
+	 * associative arrays, one per combination across all segments.
 	 */
-	private function extractSingleField(string $urlSegment, array $field, Route $route, array $filters): ?int
+	private function crossProductCandidates(array $lists): iterable
 	{
-		if ($this->resolver === null or !$route->options['entity'])
-			return null;
-
-		// Strip suffix if present (e.g., ".csv" from "myfile.csv")
-		if (!empty($field['suffix'])) {
-			$suffix = preg_quote($field['suffix'], '/');
-			$urlSegment = preg_replace('/' . $suffix . '$/', '', $urlSegment);
+		if (count($lists) === 0) {
+			yield [];
+			return;
 		}
 
-		$filters = $this->resolver->mergeQueryFilters(
-			$filters,
-			[
-				'filters' => [
-					$field['name'] => $urlSegment,
-				],
-			],
-		);
-
-
-		$row = $this->resolver->fetch($route->options['entity'], null, $filters);
-		if ($row === null)
-			return null;
-
-		return $row[$this->resolver->getPrimary($route->options['entity'])];
-	}
-
-	/**
-	 * Extract multiple fields from a single URL segment (e.g., john-doe)
-	 */
-	private function extractMultipleFields(string $urlSegment, array $fields, Route $route, array $filters): ?int
-	{
-		if ($this->resolver === null or !$route->options['entity'])
-			return null;
-
-		// Strip suffix from last field if present (e.g., ".csv" from "john-doe.csv")
-		$lastField = end($fields);
-		if (!empty($lastField['suffix'])) {
-			$suffix = preg_quote($lastField['suffix'], '/');
-			$urlSegment = preg_replace('/' . $suffix . '$/', '', $urlSegment);
+		if (count($lists) === 1) {
+			yield from $lists[0];
+			return;
 		}
 
-		$words = explode('-', $urlSegment);
-		if (count($words) < count($fields))
-			return null;
-
-		// Generate all possible combinations
-		$combinations = $this->generateFieldCombinations($words, $fields);
-
-		// Try each combination
-		foreach ($combinations as $combination) {
-			$combination_filters = $filters;
-			foreach ($combination as $fieldName => $value)
-				$combination_filters['filters'][$fieldName] = $value;
-
-			$row = $this->resolver->fetch($route->options['entity'], null, $combination_filters);
-			if ($row !== null)
-				return $row[$this->resolver->getPrimary($route->options['entity'])];
+		$first = array_shift($lists);
+		foreach ($first as $candidate) {
+			foreach ($this->crossProductCandidates($lists) as $rest)
+				yield array_merge($candidate, $rest);
 		}
-
-		return null;
 	}
 
 	/**
