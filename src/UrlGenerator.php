@@ -65,7 +65,7 @@ class UrlGenerator
 				// Check if it's the ID field
 				$value = is_numeric($element) ? (string)$element : ($element[$part['name']] ?? null);
 				if ($main_row === null)
-					$value = $element;
+					$main_row = $element;
 			} elseif (is_array($element) and isset($element[$part['name']])) {
 				// Check if we have the value in params
 				$value = $element[$part['name']];

@@ -53,6 +53,35 @@ class UrlGeneratorTest extends TestCase
 	}
 
 	#[Test]
+	public function direct_id_route_accepts_array_element(): void
+	{
+		// A pre-fetched row passed to a /:id route must use the id value itself,
+		// not coerce the whole array to a string.
+		$resolver = new FakeResolver([]);
+		$route = $this->route('/pages/:id', 'pages');
+
+		$result = $this->generator($resolver)->generate($route, ['id' => 7, 'name' => 'irrelevant']);
+
+		$this->assertSame('pages/7', $result);
+		$this->assertSame(0, $resolver->fetchCalls);
+	}
+
+	#[Test]
+	public function id_segment_promotes_array_element_to_main_row(): void
+	{
+		// When the first segment is :id and the element is a pre-fetched row,
+		// the generator should treat that row as the main_row so later non-PK
+		// segments can read fields off it without a fresh fetch.
+		$resolver = new FakeResolver([]);
+		$route = $this->route('/:id/pages/:name', 'pages');
+
+		$result = $this->generator($resolver)->generate($route, ['id' => 7, 'name' => 'home']);
+
+		$this->assertSame('7/pages/home', $result);
+		$this->assertSame(0, $resolver->fetchCalls);
+	}
+
+	#[Test]
 	public function cross_segment_generate_reuses_cached_row(): void
 	{
 		$resolver = new FakeResolver([

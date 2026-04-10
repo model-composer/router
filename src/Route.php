@@ -93,7 +93,7 @@ class Route
 
 		$trailing = $this->options['strict'] ? '' : '(\\/.*)?';
 		$this->regex = $regex ? '/^\\/?' . implode('\/', $regex) . $trailing . '$/' : '/^\\/?$/';
-		if ($this->options['case_sensitive'])
+		if (!$this->options['case_sensitive'])
 			$this->regex .= 'i';
 	}
 

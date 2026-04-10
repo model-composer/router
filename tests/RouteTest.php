@@ -152,6 +152,26 @@ class RouteTest extends TestCase
 	}
 
 	#[Test]
+	public function case_sensitive_default_compiles_strict_regex(): void
+	{
+		$route = new Route('/About', 'Ctrl');
+
+		$this->assertSame(1, preg_match($route->regex, '/About'));
+		$this->assertSame(0, preg_match($route->regex, '/about'));
+		$this->assertSame(0, preg_match($route->regex, '/ABOUT'));
+	}
+
+	#[Test]
+	public function case_insensitive_option_compiles_loose_regex(): void
+	{
+		$route = new Route('/About', 'Ctrl', ['case_sensitive' => false]);
+
+		$this->assertSame(1, preg_match($route->regex, '/About'));
+		$this->assertSame(1, preg_match($route->regex, '/about'));
+		$this->assertSame(1, preg_match($route->regex, '/ABOUT'));
+	}
+
+	#[Test]
 	public function empty_pattern_compiles(): void
 	{
 		$route = new Route('/', 'Ctrl');
