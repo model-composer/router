@@ -124,16 +124,13 @@ class UrlGenerator
 		if ($route->options['lowercase'])
 			$value = mb_strtolower($value);
 
-		// Replace whitespace with dashes
-		$value = preg_replace('/\s+/', '-', $value);
+		// Replace any disallowed character (whitespace, punctuation like ' & !, etc.)
+		// with a dash — the matcher splits segments on "-" and converts them to "%"
+		// wildcards, so preserving them as separators keeps generator and matcher aligned.
+		$value = preg_replace('/[^a-z0-9а-я\p{Han}_-]/iu', '-', $value);
 
-		// Remove special characters except dashes and underscores
-		$value = preg_replace('/[^a-z0-9а-я\p{Han}_-]/iu', '', $value);
-
-		// Remove multiple consecutive dashes
+		// Collapse consecutive dashes and trim
 		$value = preg_replace('/-+/', '-', $value);
-
-		// Trim dashes from ends
 		return trim($value, '-');
 	}
 }

@@ -129,6 +129,17 @@ class UrlGeneratorTest extends TestCase
 	}
 
 	#[Test]
+	public function url_encodes_apostrophe_as_dash(): void
+	{
+		$resolver = new FakeResolver([
+			'hotels' => [['id' => 1, 'name' => "L'Araba Fenice Hotel & Resort"]],
+		]);
+		$route = $this->route('/hotels/:name', 'hotels');
+
+		$this->assertSame('hotels/l-araba-fenice-hotel-resort', $this->generator($resolver)->generate($route, 1));
+	}
+
+	#[Test]
 	public function url_encodes_cyrillic(): void
 	{
 		$resolver = new FakeResolver([

@@ -223,8 +223,7 @@ $url = $router->generate('PageController', 5, ['lang' => 'it']);
 
 The router automatically converts field values to URL-friendly format:
 - Converts to lowercase
-- Replaces spaces with dashes
-- Removes special characters
+- Replaces any disallowed character (whitespace, punctuation like `'`, `&`, `!`, ...) with a dash, then collapses consecutive dashes — this keeps the generator aligned with the matcher, which splits URL segments on `-` and turns them into `%` LIKE wildcards (so `"L'Araba Fenice Hotel & Resort"` generates `l-araba-fenice-hotel-resort` and matches back)
 - Supports Unicode characters (Cyrillic, Chinese, etc.)
 
 ### Caching
